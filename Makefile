@@ -24,8 +24,7 @@ down:
 	$(COMPOSE) down -v
 
 restart:
-	$(COMPOSE) down
-	$(COMPOSE) up
+	$(COMPOSE) restart
 
 logs:
 	$(COMPOSE) logs -f

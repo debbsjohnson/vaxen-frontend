@@ -1,0 +1,20 @@
+name: vaxen-frontend
+
+services:
+  web:
+    platform: linux/amd64
+    container_name: vaxen-web
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://host.docker.internal:3001
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run dev

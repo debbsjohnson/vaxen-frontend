@@ -1,5 +1,5 @@
 {
-  "name": "@vaxen/types",
+  "name": "@/types",
   "version": "1.0.0",
   "description": "Shared TypeScript types and Zod schemas for Vaxen",
   "main": "dist/index.js",

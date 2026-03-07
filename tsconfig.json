@@ -22,7 +22,7 @@
     "paths": {
       "@/*": ["./src/*"]
       // "@vaxen/ui": ["../../packages/ui/src"],
-      // "@vaxen/types": ["../../packages/types/src"],
+      // "@/types": ["../../packages/types/src"],
       // "@vaxen/config": ["../../packages/config"]
     }
   },

@@ -18,7 +18,7 @@ build:
 	$(COMPOSE) build --no-cache
 
 up:
-	$(COMPOSE) up
+	$(COMPOSE) up -d
 
 down:
 	$(COMPOSE) down -v

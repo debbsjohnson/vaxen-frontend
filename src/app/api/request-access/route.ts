@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchBackend } from '@/lib/backend-fetcher';
 
 // Rate limiting store (in production, use Redis or similar)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
 const RATE_LIMIT = 5; // Max 5 requests
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const BACKEND_REQUEST_ACCESS_PATH = process.env.BACKEND_REQUEST_ACCESS_PATH || '/api/request-access';
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
@@ -62,9 +64,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // In production, save to database here
-    // For now, we'll just log it
-    console.log('New access request:', {
+    const payload = {
       name: body.name,
       company: body.company,
       email: body.email,
@@ -75,29 +75,37 @@ export async function POST(request: NextRequest) {
       useCase: body.useCase,
       website: body.website,
       notes: body.notes,
-      timestamp: new Date().toISOString(),
+    };
+
+    const backendResponse = await fetchBackend(BACKEND_REQUEST_ACCESS_PATH, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      cache: 'no-store',
     });
 
-    // TODO: Save to database
-    // await saveRequestAccessLead({
-    //   name: body.name,
-    //   company: body.company,
-    //   email: body.email,
-    //   role: body.role,
-    //   country: body.country,
-    //   markets: body.markets,
-    //   annualVolume: body.annualVolume,
-    //   useCase: body.useCase,
-    //   website: body.website,
-    //   notes: body.notes,
-    // });
+    let backendData: unknown = null;
+    try {
+      backendData = await backendResponse.json();
+    } catch {
+      backendData = null;
+    }
 
-    return NextResponse.json({ success: true });
+    if (!backendResponse.ok) {
+      return NextResponse.json(
+        backendData || { error: 'Backend request failed' },
+        { status: backendResponse.status }
+      );
+    }
+
+    return NextResponse.json(backendData || { success: true });
   } catch (error) {
-    console.error('Error processing request:', error);
+    console.error('Error proxying request-access:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: 'Unable to reach backend service' },
+      { status: 502 }
     );
   }
 }

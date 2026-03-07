@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Loader2, CheckCircle } from 'lucide-react';
+import { postJson } from '@/lib/client-api';
 
 interface RequestAccessFormProps {
   onSuccess?: () => void;
@@ -103,17 +104,7 @@ export function RequestAccessForm({ onSuccess }: RequestAccessFormProps) {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/request-access', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to submit request');
-      }
+      await postJson('/api/request-access', formData);
 
       setIsSuccess(true);
       

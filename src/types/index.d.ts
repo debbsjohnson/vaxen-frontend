@@ -1,4 +1,3 @@
-// Core entities
 export * from './auth';
 export * from './organization';
 export * from './user';
@@ -14,9 +13,4 @@ export * from './ledger';
 export * from './statement';
 export * from './compliance';
 export * from './audit';
-
-// Common types
 export * from './common';
-
-// Landing page types
-export * from './landing';

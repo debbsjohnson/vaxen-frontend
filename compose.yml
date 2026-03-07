@@ -10,7 +10,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://host.docker.internal:3001
+      - NEXT_PUBLIC_API_URL=http://host.docker.internal:8080
       - NODE_ENV=development
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true

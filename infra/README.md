@@ -4,7 +4,7 @@ This directory contains all infrastructure configuration files for the Vaxen Fro
 
 ## Directory Structure
 
-```
+```sh
 infra/
 ├── dev/                    # Development environment
 │   ├── Dockerfile
@@ -29,6 +29,7 @@ infra/
 Local development environment with hot-reload and debugging capabilities.
 
 **Features:**
+
 - Hot module reloading
 - File watching
 - Volume mounting for live code updates
@@ -36,6 +37,7 @@ Local development environment with hot-reload and debugging capabilities.
 - Connects to local backend at `http://host.docker.internal:8080`
 
 **Quick Start:**
+
 ```bash
 # Setup environment
 make setup-dev
@@ -55,6 +57,7 @@ make shell ENV=dev
 Testing/staging environment that mimics production setup.
 
 **Features:**
+
 - Production build
 - Optimized for testing
 - Health checks enabled
@@ -62,6 +65,7 @@ Testing/staging environment that mimics production setup.
 - Connects to testing backend at `https://api-test.vaxen.com`
 
 **Quick Start:**
+
 ```bash
 # Setup environment
 make setup-testing
@@ -81,6 +85,7 @@ make logs ENV=testing
 Production environment optimized for performance and deployed to Fly.io.
 
 **Features:**
+
 - Multi-stage build for minimal image size
 - Security hardening (non-root user)
 - Health checks
@@ -89,6 +94,7 @@ Production environment optimized for performance and deployed to Fly.io.
 - Deployed to Fly.io
 
 **Quick Start:**
+
 ```bash
 # Deploy to production
 make prod
@@ -149,6 +155,7 @@ fly secrets set KEY=VALUE
 
 | Variable | Description | Example |
 |----------|-------------|---------|
+
 | `NODE_ENV` | Environment mode | `development`, `production` |
 | `NEXT_PUBLIC_API_URL` | Frontend API URL | `http://localhost:8080` |
 | `BACKEND_BASE_URL` | Server-side backend URL | `http://host.docker.internal:8080` |
@@ -158,11 +165,13 @@ fly secrets set KEY=VALUE
 ## Development Workflow
 
 1. **Setup:**
+
    ```bash
    make setup-dev
    ```
 
 2. **Start Development:**
+
    ```bash
    make dev
    ```
@@ -172,11 +181,13 @@ fly secrets set KEY=VALUE
    - Changes auto-reload in the browser
 
 4. **View Logs:**
+
    ```bash
    make logs ENV=dev
    ```
 
 5. **Debug:**
+
    ```bash
    make shell ENV=dev
    ```
@@ -184,16 +195,19 @@ fly secrets set KEY=VALUE
 ## Testing Workflow
 
 1. **Build & Start:**
+
    ```bash
    make test
    ```
 
 2. **Run Tests:**
+
    ```bash
    npm test
    ```
 
 3. **Deploy to Testing:**
+
    ```bash
    make deploy-test
    ```
@@ -203,16 +217,19 @@ fly secrets set KEY=VALUE
 ### Prerequisites
 
 1. Install Fly.io CLI:
+
    ```bash
    brew install flyctl  # macOS
    ```
 
 2. Login to Fly.io:
+
    ```bash
    fly auth login
    ```
 
 3. Set secrets:
+
    ```bash
    fly secrets set BACKEND_BASE_URL=https://api.vaxen.com
    fly secrets set SESSION_SECRET=your-secret
@@ -225,6 +242,7 @@ make prod
 ```
 
 Or manually:
+
 ```bash
 cd infra/production
 fly deploy --config fly.toml --dockerfile Dockerfile
@@ -249,16 +267,19 @@ fly ssh console
 ## Docker Images
 
 ### Development Image
+
 - Base: `node:20-alpine`
 - Size: ~500MB (with node_modules)
 - Build time: ~2 minutes
 
 ### Testing Image
+
 - Base: `node:20-alpine`
 - Size: ~200MB (optimized)
 - Build time: ~3 minutes
 
 ### Production Image
+
 - Base: `node:20-alpine`
 - Size: ~150MB (minimal)
 - Build time: ~4 minutes
@@ -268,6 +289,7 @@ fly ssh console
 ## Troubleshooting
 
 ### Port Already in Use
+
 ```bash
 # Find process using port
 lsof -ti:3000 | xargs kill -9
@@ -276,6 +298,7 @@ lsof -ti:3000 | xargs kill -9
 ```
 
 ### Container Won't Start
+
 ```bash
 # Check logs
 make logs ENV=dev
@@ -285,12 +308,14 @@ make rebuild ENV=dev
 ```
 
 ### Volume Permission Issues
+
 ```bash
 # Fix node_modules ownership
 docker exec -it vaxen-web-dev chown -R node:node /app/node_modules
 ```
 
 ### Hot Reload Not Working
+
 ```bash
 # Ensure polling is enabled in .env
 CHOKIDAR_USEPOLLING=true
@@ -340,6 +365,7 @@ make health ENV=dev
 ## Support
 
 For infrastructure issues:
+
 1. Check logs: `make logs ENV=<env>`
 2. Verify environment variables
 3. Review Dockerfile for the specific environment

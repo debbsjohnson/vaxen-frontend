@@ -1,0 +1,28 @@
+name: vaxen-frontend-testing
+
+services:
+  web:
+    platform: linux/amd64
+    container_name: vaxen-web-test
+    build:
+      context: ../../
+      dockerfile: infra/testing/Dockerfile
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api-test.vaxen.com}
+      - BACKEND_BASE_URL=${BACKEND_BASE_URL:-https://api-test.vaxen.com}
+    restart: unless-stopped
+    networks:
+      - vaxen-test-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  vaxen-test-network:
+    driver: bridge

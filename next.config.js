@@ -7,6 +7,8 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
   },
+  // Enable standalone output for Docker production builds
+  output: process.env.NODE_ENV === 'production' ? 'standalone' : undefined,
 };
 
 module.exports = withNextIntl(nextConfig);

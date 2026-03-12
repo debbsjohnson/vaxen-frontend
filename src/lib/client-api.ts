@@ -1,0 +1,73 @@
+type FetchOptions<TBody> = {
+  method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
+  headers?: Record<string, string>;
+  body?: TBody;
+};
+
+async function handleResponse<TResponse>(response: Response): Promise<TResponse> {
+  if (!response.ok) {
+    let message = 'Request failed';
+
+    try {
+      const data = await response.json();
+      if (typeof data?.error === 'string') {
+        message = data.error;
+      }
+    } catch {
+      message = 'Request failed';
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<TResponse>;
+}
+
+async function request<TResponse, TBody>(
+  path: string,
+  options: FetchOptions<TBody>
+): Promise<TResponse> {
+  const fetchOptions: RequestInit = {
+    method: options.method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  };
+
+  if (options.body) {
+    fetchOptions.body = JSON.stringify(options.body);
+  }
+
+  const response = await fetch(path, fetchOptions);
+  return handleResponse<TResponse>(response);
+}
+
+export async function getJson<TResponse>(path: string): Promise<TResponse> {
+  return request<TResponse, never>(path, { method: 'GET' });
+}
+
+export async function postJson<TResponse, TBody>(path: string, body: TBody): Promise<TResponse> {
+  return request<TResponse, TBody>(path, {
+    method: 'POST',
+    body,
+  });
+}
+
+export async function patchJson<TResponse, TBody>(path: string, body: TBody): Promise<TResponse> {
+  return request<TResponse, TBody>(path, {
+    method: 'PATCH',
+    body,
+  });
+}
+
+export async function putJson<TResponse, TBody>(path: string, body: TBody): Promise<TResponse> {
+  return request<TResponse, TBody>(path, {
+    method: 'PUT',
+    body,
+  });
+}
+
+export async function deleteJson<TResponse>(path: string): Promise<TResponse> {
+  return request<TResponse, never>(path, { method: 'DELETE' });
+}

@@ -1,0 +1,28 @@
+name: vaxen-frontend-dev
+
+services:
+  web:
+    platform: linux/amd64
+    container_name: vaxen-web-dev
+    build:
+      context: ../../
+      dockerfile: infra/dev/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://host.docker.internal:8080
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ../../:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+    restart: unless-stopped
+    networks:
+      - vaxen-network
+
+networks:
+  vaxen-network:
+    driver: bridge

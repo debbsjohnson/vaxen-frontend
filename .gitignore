@@ -23,6 +23,12 @@ yarn-error.log*
 # env files
 .env
 .env*.local
+.env.test
+.env.production
+
+# Keep example files
+!.env.example
+!infra/**/.env.example
 
 # vercel
 .vercel
@@ -33,3 +39,6 @@ next-env.d.ts
 
 # claude code settings
 .claude/
+
+# old infrastructure files (backup)
+infra/.old/

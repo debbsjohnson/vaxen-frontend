@@ -1,8 +1,8 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@vaxen/ui';
-import { Button } from '@vaxen/ui';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui';
+import { Button } from '@/ui';
 import { Upload, Download } from 'lucide-react';
 
 export function BatchPayouts() {

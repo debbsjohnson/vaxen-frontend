@@ -74,7 +74,6 @@ export function DashboardPreview() {
 	const [transactions, setTransactions] = useState(100);
 	const [dashboardData, setDashboardData] =
 		useState<DashboardSummary>(mockDashboardData);
-	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const sectionRef = useRef<HTMLElement>(null);
 	const dashboardRef = useRef<HTMLDivElement>(null);
@@ -85,7 +84,6 @@ export function DashboardPreview() {
 	useEffect(() => {
 		const fetchDashboardData = async () => {
 			try {
-				setIsLoading(true);
 				setError(null);
 				const data = await getJson<DashboardSummary>("/api/landing/dashboard");
 				setDashboardData(data);
@@ -94,102 +92,125 @@ export function DashboardPreview() {
 				setError("Failed to load dashboard data");
 				// Keep mock data on error
 				setDashboardData(mockDashboardData);
-			} finally {
-				setIsLoading(false);
 			}
 		};
 
 		fetchDashboardData();
 	}, []);
-	const observer = new IntersectionObserver(
-		entries => {
-			entries.forEach(entry => {
-				if (entry.isIntersecting && !hasAnimated.current) {
-					setIsVisible(true);
-					hasAnimated.current = true;
-					// Get target values from dashboard stats if available
-					const targetVolume = dashboardData.stats?.totalVolume || 30_000_000;
-					const targetBusinesses = dashboardData.stats?.totalBusinesses || 1000;
-					const targetTransactions =
-						dashboardData.stats?.totalTransactions || 5000;
 
-					// Animate volume from 1 to target
-					const volumeDuration = 4000; // 4 seconds
-					const volumeSteps = 100;
-					const volumeIncrement = (targetVolume - 1) / volumeSteps;
-					let volumeStep = 0;
-					const volumeInterval = setInterval(() => {
-						volumeStep++;
-						const newVolume = Math.min(
-							1 + volumeStep * volumeIncrement,
-							targetVolume,
-						);
-						setVolume(newVolume);
-						if (volumeStep >= volumeSteps) {
-							clearInterval(volumeInterval);
-						}
-					}, volumeDuration / volumeSteps);
-
-					// Animate businesses from 100 to target
-					const businessesDuration = 4000;
-					const businessesSteps = 100;
-					const businessesIncrement =
-						(targetBusinesses - 100) / businessesSteps;
-					let businessesStep = 0;
-					const businessesInterval = setInterval(() => {
-						businessesStep++;
-						const newBusinesses = Math.min(
-							100 + businessesStep * businessesIncrement,
-							targetBusinesses,
-						);
-						setBusinesses(newBusinesses);
-						if (businessesStep >= businessesSteps) {
-							clearInterval(businessesInterval);
-						}
-					}, businessesDuration / businessesSteps);
-
-					// Animate transactions from 100 to target
-					const transactionsDuration = 4000;
-					const transactionsSteps = 100;
-					const transactionsIncrement =
-						(targetTransactions - 100) / transactionsSteps;
-					let transactionsStep = 0;
-					const transactionsInterval = setInterval(() => {
-						transactionsStep++;
-						const newTransactions = Math.min(
-							100 + transactionsStep * transactionsIncrement,
-							targetTransactions,
-						);
-						setTransactions(newTransactions);
-						if (transactionsStep >= transactionsSteps) {
-							clearInterval(transactionsInterval);
-						}
-					}, transactionsDuration / transactionsSteps);
-				}
-			});
-		},
-		{ threshold: 0.1 },
-	);
-
-	if (sectionRef.current) {
-		observer.observe(sectionRef.current);
-	}
-
-	return () => {
-		if (sectionRef.current) {
-			observer.unobserve(sectionRef.current);
+	useEffect(() => {
+		const sectionEl = sectionRef.current;
+		if (!sectionEl) {
+			return;
 		}
-	};
+
+		let volumeInterval: ReturnType<typeof setInterval> | undefined;
+		let businessesInterval: ReturnType<typeof setInterval> | undefined;
+		let transactionsInterval: ReturnType<typeof setInterval> | undefined;
+
+		const observer = new IntersectionObserver(
+			entries => {
+				entries.forEach(entry => {
+					if (entry.isIntersecting && !hasAnimated.current) {
+						setIsVisible(true);
+						hasAnimated.current = true;
+
+						// Get target values from dashboard stats if available.
+						const targetVolume = dashboardData.stats?.totalVolume || 30_000_000;
+						const targetBusinesses =
+							dashboardData.stats?.totalBusinesses || 1000;
+						const targetTransactions =
+							dashboardData.stats?.totalTransactions || 5000;
+
+						// Animate volume from 1 to target.
+						const volumeDuration = 4000;
+						const volumeSteps = 100;
+						const volumeIncrement = (targetVolume - 1) / volumeSteps;
+						let volumeStep = 0;
+						volumeInterval = setInterval(() => {
+							volumeStep++;
+							const newVolume = Math.min(
+								1 + volumeStep * volumeIncrement,
+								targetVolume,
+							);
+							setVolume(newVolume);
+							if (volumeStep >= volumeSteps) {
+								if (volumeInterval) {
+									clearInterval(volumeInterval);
+								}
+							}
+						}, volumeDuration / volumeSteps);
+
+						// Animate businesses from 100 to target.
+						const businessesDuration = 4000;
+						const businessesSteps = 100;
+						const businessesIncrement =
+							(targetBusinesses - 100) / businessesSteps;
+						let businessesStep = 0;
+						businessesInterval = setInterval(() => {
+							businessesStep++;
+							const newBusinesses = Math.min(
+								100 + businessesStep * businessesIncrement,
+								targetBusinesses,
+							);
+							setBusinesses(newBusinesses);
+							if (businessesStep >= businessesSteps) {
+								if (businessesInterval) {
+									clearInterval(businessesInterval);
+								}
+							}
+						}, businessesDuration / businessesSteps);
+
+						// Animate transactions from 100 to target.
+						const transactionsDuration = 4000;
+						const transactionsSteps = 100;
+						const transactionsIncrement =
+							(targetTransactions - 100) / transactionsSteps;
+						let transactionsStep = 0;
+						transactionsInterval = setInterval(() => {
+							transactionsStep++;
+							const newTransactions = Math.min(
+								100 + transactionsStep * transactionsIncrement,
+								targetTransactions,
+							);
+							setTransactions(newTransactions);
+							if (transactionsStep >= transactionsSteps) {
+								if (transactionsInterval) {
+									clearInterval(transactionsInterval);
+								}
+							}
+						}, transactionsDuration / transactionsSteps);
+					}
+				});
+			},
+			{ threshold: 0.1 },
+		);
+
+		observer.observe(sectionEl);
+
+		return () => {
+			observer.unobserve(sectionEl);
+			if (volumeInterval) {
+				clearInterval(volumeInterval);
+			}
+			if (businessesInterval) {
+				clearInterval(businessesInterval);
+			}
+			if (transactionsInterval) {
+				clearInterval(transactionsInterval);
+			}
+		};
+	}, [dashboardData.stats]);
 
 	// Separate observer for dashboard container
 	useEffect(() => {
 		const observer = new IntersectionObserver(
 			entries => {
 				entries.forEach(entry => {
-					// if (entry.isIntersecting && !dashboardHasAnimated.current) {
-					//   setDashboardVisible(true);
-					//   dashboardHasAnimated.current = true;
-					// }
+					if (entry.isIntersecting && !dashboardHasAnimated.current) {
+						setDashboardVisible(true);
+						dashboardHasAnimated.current = true;
+					}
 				});
 			},
 			{ threshold: 0.2 },

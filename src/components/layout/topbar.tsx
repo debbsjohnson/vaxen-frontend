@@ -2,8 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 import { Bell, User, LogOut } from 'lucide-react';
-import { Button } from '@vaxen/ui';
-import { Avatar, AvatarFallback, AvatarImage } from '@vaxen/ui';
+import { Button } from '@/ui';
+import { Avatar, AvatarFallback, AvatarImage } from '@/ui';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +11,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@vaxen/ui';
+} from '@/ui';
 
 export function Topbar() {
   const t = useTranslations('auth');

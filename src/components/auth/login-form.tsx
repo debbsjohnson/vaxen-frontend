@@ -4,10 +4,10 @@ import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Button } from '@vaxen/ui';
-import { Input } from '@vaxen/ui';
-import { Label } from '@vaxen/ui';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@vaxen/ui';
+import { Button } from '@/ui';
+import { Input } from '@/ui';
+import { Label } from '@/ui';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),

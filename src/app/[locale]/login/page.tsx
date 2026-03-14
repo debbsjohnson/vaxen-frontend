@@ -1,4 +1,4 @@
-// import { LoginForm } from '@/components/auth/login-form';
+import { LoginForm } from '@/components/auth/login-form';
 
 export default function LoginPage() {
   return (
@@ -12,7 +12,7 @@ export default function LoginPage() {
             Global treasury and cross-border payments
           </p>
         </div>
-        <div>Login form coming soon...</div>
+        <LoginForm />
       </div>
     </div>
   );

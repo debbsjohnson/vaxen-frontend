@@ -12,8 +12,8 @@ export function RequestAccessForm({ onSuccess }: RequestAccessFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     company: '',
-    role: '',
     email: '',
+    role: '',
     country: '',
     markets: [] as string[],
     annualVolume: '',
@@ -104,7 +104,7 @@ export function RequestAccessForm({ onSuccess }: RequestAccessFormProps) {
     setIsSubmitting(true);
 
     try {
-      await postJson('/api/request-access', formData);
+      await postJson('/api/auth/request-access', formData);
 
       setIsSuccess(true);
       

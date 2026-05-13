@@ -351,7 +351,16 @@ export function Wallets() {
   const [activeTab, setActiveTab] = useState('balances');
   const [transactionFilter, setTransactionFilter] = useState('all');
   const [walletBalances, setWalletBalances] = useState(mockWalletBalances);
-  const [transactions, setTransactions] = useState(mockTransactions);
+  const [transactions, setTransactions] = useState<Array<{
+    id: string;
+    date: string;
+    type: string;
+    currency: string;
+    amount: string;
+    rate?: string;
+    description: string;
+    status: string;
+  }>>(mockTransactions);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {

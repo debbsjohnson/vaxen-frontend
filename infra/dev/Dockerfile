@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:20.20.2-alpine3.22
 
 # Install dependencies for file watching
 RUN apk add --no-cache libc6-compat
@@ -9,7 +9,7 @@ WORKDIR /app
 # Install dependencies first (better layer caching)
 COPY package.json package-lock.json* ./
 
-RUN npm install --include=optional
+RUN npm install --include=optional --legacy-peer-deps
 
 # Copy everything else
 COPY . .

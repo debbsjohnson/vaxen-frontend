@@ -209,7 +209,18 @@ const priorityConfig = {
 
 export function Notifications() {
   const { toasts, addToast, removeToast } = useToastStack();
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const [notifications, setNotifications] = useState<Array<{
+    id: string;
+    type: string;
+    priority: string;
+    title: string;
+    message: string;
+    timestamp: string;
+    read: boolean;
+    category: string;
+    action: string;
+    metadata: Record<string, unknown>;
+  }>>(mockNotifications);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -369,7 +380,7 @@ export function Notifications() {
   };
 
   // Get notification icon and styling
-  const getNotificationStyle = (notification: typeof mockNotifications[0]) => {
+  const getNotificationStyle = (notification: { type: string; priority: string; [key: string]: unknown }) => {
     const typeConfig = notificationTypes[notification.type as keyof typeof notificationTypes];
     const priorityStyle = priorityConfig[notification.priority as keyof typeof priorityConfig];
     

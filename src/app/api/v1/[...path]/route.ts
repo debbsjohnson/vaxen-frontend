@@ -4,9 +4,9 @@ import { fetchBackend } from '@/lib/backend-fetcher';
 export const dynamic = 'force-dynamic';
 
 type RouteContext = {
-  params: {
+  params: Promise<{
     path: string[];
-  };
+  }>;
 };
 
 const FORWARDED_HEADERS = ['authorization', 'content-type', 'x-csrf-token', 'x-request-id'];
@@ -30,9 +30,10 @@ function buildForwardHeaders(request: NextRequest) {
 }
 
 async function proxyToBackend(request: NextRequest, context: RouteContext) {
-  const path = context.params.path.join('/');
+  const { path } = await context.params;
+  const pathStr = path.join('/');
   const search = request.nextUrl.search;
-  const backendPath = `/api/v1/${path}${search}`;
+  const backendPath = `/api/v1/${pathStr}${search}`;
 
   const headers = buildForwardHeaders(request);
   const method = request.method;

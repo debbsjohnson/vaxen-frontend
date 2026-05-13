@@ -1,6 +1,6 @@
 import { Providers } from '@/components/providers';
 import { NextIntlClientProvider } from 'next-intl';
-import { unstable_setRequestLocale } from 'next-intl/server';
+import { setRequestLocale } from 'next-intl/server';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -30,7 +30,7 @@ export default async function LocaleLayout({
   // Set the request locale so next-intl server hooks (getNow, getTimeZone, etc.)
   // can resolve the locale from React's request-scoped cache instead of reading
   // the X-NEXT-INTL-LOCALE header, which avoids an unexpected notFound() call.
-  unstable_setRequestLocale(validLocale);
+  setRequestLocale(validLocale);
 
   const messages = (await import(`../../messages/${validLocale}.json`)).default;
 

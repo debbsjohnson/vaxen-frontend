@@ -25,14 +25,16 @@ import {
 } from 'lucide-react';
 import { CurrencyIcon } from '@/components/shared/currency-icon';
 import { ToastStack } from '@/components/shared/toast-stack';
+import {
+  mapPayoutToUiTransaction,
+  mapWalletToWalletCard,
+} from '@/lib/backend-mappers';
 import { vaxenApi } from '@/lib/vaxen-api';
 import {
-  formatAmount,
   formatDateTime,
   formatStatusLabel,
   getCurrencyName,
   getCurrencySymbol,
-  parseAmount,
 } from '@/lib/formatters';
 import { useToastStack } from '@/lib/use-toast-stack';
 
@@ -360,31 +362,15 @@ export function Wallets() {
           vaxenApi.payouts.list(),
         ]);
 
-        const mappedWallets = walletsResponse.data.map((wallet) => {
-          const available = parseAmount(wallet.availableBalance);
-          const pending = parseAmount(wallet.pendingBalance);
+        const mappedWallets = walletsResponse.data.map(mapWalletToWalletCard);
+
+        const mappedTransactions = payoutsResponse.data.map((payout) => {
+          const base = mapPayoutToUiTransaction(payout);
           return {
-            currency: wallet.currency,
-            name: getCurrencyName(wallet.currency),
-            flag: '',
-            available: formatAmount(wallet.availableBalance),
-            total: formatAmount(wallet.balance),
-            usdValue: formatAmount(wallet.availableBalance),
-            change: pending > 0 ? `Pending ${formatAmount(wallet.pendingBalance)}` : wallet.isActive ? 'Active' : 'Inactive',
-            changeType: wallet.isActive ? ('positive' as const) : ('negative' as const),
+            ...base,
+            type: 'withdrawal',
           };
         });
-
-        const mappedTransactions = payoutsResponse.data.map((payout) => ({
-          id: payout.id,
-          date: payout.createdAt,
-          type: 'withdrawal',
-          currency: payout.currency,
-          amount: formatAmount(payout.amount),
-          rate: '1.0',
-          description: payout.reference || payout.description || `Payout ${payout.id}`,
-          status: payout.status,
-        }));
 
         if (mappedWallets.length > 0) {
           setWalletBalances(mappedWallets);

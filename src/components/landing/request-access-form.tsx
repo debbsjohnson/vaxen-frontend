@@ -2,13 +2,16 @@
 
 import { useState } from 'react';
 import { Loader2, CheckCircle } from 'lucide-react';
+import { ToastStack } from '@/components/shared/toast-stack';
 import { vaxenApi } from '@/lib/vaxen-api';
+import { useToastStack } from '@/lib/use-toast-stack';
 
 interface RequestAccessFormProps {
   onSuccess?: () => void;
 }
 
 export function RequestAccessForm({ onSuccess }: RequestAccessFormProps) {
+  const { toasts, addToast, removeToast } = useToastStack();
   const [formData, setFormData] = useState({
     name: '',
     company: '',
@@ -92,7 +95,9 @@ export function RequestAccessForm({ onSuccess }: RequestAccessFormProps) {
 
     // Validation
     if (!formData.name || !formData.company || !formData.email || !formData.role) {
-      setError('Please fill in all required fields.');
+      const message = 'Please fill in all required fields.';
+      setError(message);
+      addToast('error', message);
       return;
     }
 
@@ -101,12 +106,16 @@ export function RequestAccessForm({ onSuccess }: RequestAccessFormProps) {
     const lastName = lastNameParts.join(' ').trim();
 
     if (!firstName || !lastName) {
-      setError('Please provide your first and last name.');
+      const message = 'Please provide your first and last name.';
+      setError(message);
+      addToast('error', message);
       return;
     }
 
     if (!formData.markets.length) {
-      setError('Please select at least one primary market.');
+      const message = 'Please select at least one primary market.';
+      setError(message);
+      addToast('error', message);
       return;
     }
 
@@ -129,6 +138,7 @@ export function RequestAccessForm({ onSuccess }: RequestAccessFormProps) {
       });
 
       setIsSuccess(true);
+      addToast('success', 'Access request submitted successfully.');
       
       // Track analytics
       if (typeof window !== 'undefined' && (window as any).gtag) {
@@ -158,7 +168,9 @@ export function RequestAccessForm({ onSuccess }: RequestAccessFormProps) {
         }
       }, 3000);
     } catch (err) {
-      setError('Something went wrong. Please try again.');
+      const message = 'Something went wrong. Please try again.';
+      setError(message);
+      addToast('error', message);
       
       // Track analytics
       if (typeof window !== 'undefined' && (window as any).gtag) {
@@ -173,20 +185,24 @@ export function RequestAccessForm({ onSuccess }: RequestAccessFormProps) {
 
   if (isSuccess) {
     return (
-      <div className="text-center py-8">
-        <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-foreground mb-2">
-          Request Received
-        </h3>
-        <p className="text-muted-foreground">
-          We've received your request. If it's a fit, we'll reach out shortly.
-        </p>
-      </div>
+      <>
+        <div className="text-center py-8">
+          <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-foreground mb-2">
+            Request Received
+          </h3>
+          <p className="text-muted-foreground">
+            We've received your request. If it's a fit, we'll reach out shortly.
+          </p>
+        </div>
+        <ToastStack toasts={toasts} onDismiss={removeToast} />
+      </>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <>
+      <form onSubmit={handleSubmit} className="space-y-6">
       {/* Honeypot field - hidden from users */}
       <input
         type="text"
@@ -430,7 +446,9 @@ export function RequestAccessForm({ onSuccess }: RequestAccessFormProps) {
           'Submit Request'
         )}
       </button>
-    </form>
+      </form>
+      <ToastStack toasts={toasts} onDismiss={removeToast} />
+    </>
   );
 }
 

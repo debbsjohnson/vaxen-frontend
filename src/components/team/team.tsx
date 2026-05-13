@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Plus,
   Search,
@@ -18,6 +18,9 @@ import {
   ChevronRight,
   ChevronDown
 } from 'lucide-react';
+import { ToastStack } from '@/components/shared/toast-stack';
+import { vaxenApi } from '@/lib/vaxen-api';
+import { useToastStack } from '@/lib/use-toast-stack';
 
 // Mock data for team members
 const mockTeamMembers = [
@@ -91,17 +94,76 @@ const mockPendingApprovals = [
 ];
 
 export function Team() {
+  const { toasts, addToast, removeToast } = useToastStack();
   const [activeTab, setActiveTab] = useState('members');
   const [searchTerm, setSearchTerm] = useState('');
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [teamMembers, setTeamMembers] = useState(mockTeamMembers);
+  const [pendingApprovals, setPendingApprovals] = useState(mockPendingApprovals);
 
   // Filter members based on search term
-  const filteredMembers = mockTeamMembers.filter(member =>
+  const filteredMembers = teamMembers.filter(member =>
     member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     member.role.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTeamData = async () => {
+      try {
+        const [usersResponse, approvalsResponse] = await Promise.all([
+          vaxenApi.admin.users.list({ page: 1, limit: 100 }),
+          vaxenApi.approvals.pending(),
+        ]);
+
+        if (!cancelled && usersResponse.data.length > 0) {
+          setTeamMembers(
+            usersResponse.data.map((user) => {
+              const localPart = user.email.split('@')[0] || 'User';
+              const derivedName = localPart
+                .replace(/[._-]+/g, ' ')
+                .replace(/\b\w/g, (char) => char.toUpperCase());
+
+              return {
+                id: user.id,
+                name: derivedName,
+                email: user.email,
+                role: user.role,
+                dateAdded: new Date().toISOString(),
+                avatar: '',
+                status: 'active',
+              };
+            })
+          );
+        }
+
+        if (!cancelled) {
+          setPendingApprovals(
+            approvalsResponse.data.map((approval) => ({
+              id: approval.id,
+              name: `${approval.resourceType} request`,
+              email: approval.requestedById,
+              role: approval.actionType.toUpperCase().includes('ADMIN') ? 'ADMIN' : 'USER',
+              dateRequested: approval.createdAt,
+              invitedBy: approval.requestedById,
+              avatar: '',
+            }))
+          );
+        }
+      } catch {
+        addToast('error', 'Unable to load team data from backend.');
+      }
+    };
+
+    loadTeamData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [addToast]);
 
   // Pagination
   const totalPages = Math.ceil(filteredMembers.length / rowsPerPage);
@@ -168,9 +230,9 @@ export function Team() {
           }`}
         >
           Pending Approvals
-          {mockPendingApprovals.length > 0 && (
+          {pendingApprovals.length > 0 && (
             <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-              {mockPendingApprovals.length}
+              {pendingApprovals.length}
             </span>
           )}
         </button>
@@ -344,7 +406,7 @@ export function Team() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700">
-                  {mockPendingApprovals.map((approval) => (
+                  {pendingApprovals.map((approval) => (
                     <tr key={approval.id} className="hover:bg-slate-800/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-3">
@@ -383,7 +445,7 @@ export function Team() {
             </div>
           </div>
 
-          {mockPendingApprovals.length === 0 && (
+          {pendingApprovals.length === 0 && (
             <div className="text-center py-12">
               <div className="text-slate-400 text-lg">No pending approvals</div>
               <div className="text-slate-500 text-sm mt-2">All team member requests have been processed</div>
@@ -391,6 +453,7 @@ export function Team() {
           )}
         </div>
       )}
+      <ToastStack toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 }

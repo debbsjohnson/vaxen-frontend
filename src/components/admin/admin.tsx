@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Shield,
   Users,
@@ -59,6 +59,9 @@ import {
   ArrowUpRight,
   ArrowDownRight
 } from 'lucide-react';
+import { ToastStack } from '@/components/shared/toast-stack';
+import { vaxenApi } from '@/lib/vaxen-api';
+import { useToastStack } from '@/lib/use-toast-stack';
 
 // Mock data for system metrics
 const mockSystemMetrics = [
@@ -209,10 +212,83 @@ const mockSystemHealth = [
 ];
 
 export function Admin() {
+  const { toasts, addToast, removeToast } = useToastStack();
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [systemMetrics, setSystemMetrics] = useState(mockSystemMetrics);
+  const [recentActivities, setRecentActivities] = useState(mockRecentActivities);
+  const [users, setUsers] = useState(mockUsers);
+  const [systemHealth] = useState(mockSystemHealth);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAdminData = async () => {
+      try {
+        const [usersResponse, auditResponse] = await Promise.all([
+          vaxenApi.admin.users.list({ page: 1, limit: 100 }),
+          vaxenApi.reports.auditLogs({ page: 1, limit: 20 }),
+        ]);
+
+        if (!cancelled && usersResponse.data.length > 0) {
+          setUsers(
+            usersResponse.data.map((user) => {
+              const localPart = user.email.split('@')[0] || 'user';
+              const fullName = localPart
+                .replace(/[._-]+/g, ' ')
+                .replace(/\b\w/g, (char) => char.toUpperCase());
+
+              return {
+                id: user.id,
+                name: fullName,
+                email: user.email,
+                role: user.role.toLowerCase(),
+                status: 'active',
+                lastLogin: null,
+                createdAt: new Date().toISOString(),
+                loginCount: 0,
+                location: 'Unknown',
+              };
+            })
+          );
+        }
+
+        if (!cancelled && auditResponse.data.length > 0) {
+          const mappedActivities = auditResponse.data.map((log) => ({
+            id: log.id,
+            type: log.resource,
+            user: log.userId || 'system',
+            action: log.action,
+            timestamp: log.createdAt,
+            status: 'info',
+            ip: log.ipAddress || 'n/a',
+            location: 'n/a',
+          }));
+          setRecentActivities(mappedActivities);
+
+          setSystemMetrics((current) => [
+            {
+              ...current[0],
+              value: String(usersResponse.pagination?.total || usersResponse.data.length || current[0].value),
+            },
+            { ...current[1], value: String(mappedActivities.length) },
+            current[2],
+            current[3],
+          ]);
+        }
+      } catch {
+        addToast('error', 'Unable to load admin analytics from backend.');
+      }
+    };
+
+    loadAdminData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [addToast]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -262,7 +338,7 @@ export function Admin() {
     });
   };
 
-  const filteredUsers = mockUsers.filter(user => {
+  const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === 'all' || user.status === filterStatus;
@@ -322,7 +398,7 @@ export function Admin() {
         <div className="space-y-8">
           {/* System Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {mockSystemMetrics.map((metric, index) => (
+            {systemMetrics.map((metric, index) => (
               <div key={index} className="gradient-card border border-slate-600 rounded-lg p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -349,7 +425,7 @@ export function Admin() {
           <div className="gradient-card border border-slate-600 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-white mb-6">Recent Activities</h3>
             <div className="space-y-3">
-              {mockRecentActivities.map((activity) => (
+              {recentActivities.map((activity) => (
                 <div key={activity.id} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg">
                   <div className="flex items-center space-x-4">
                     <div className={`p-2 rounded-lg ${getStatusColor(activity.status)}`}>
@@ -554,7 +630,7 @@ export function Admin() {
           <div className="gradient-card border border-slate-600 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-white mb-6">System Health</h3>
             <div className="space-y-3">
-              {mockSystemHealth.map((service, index) => (
+              {systemHealth.map((service, index) => (
                 <div key={index} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg">
                   <div className="flex items-center space-x-4">
                     <div className={`p-2 rounded-lg ${getStatusColor(service.status)}`}>
@@ -672,7 +748,7 @@ export function Admin() {
               </div>
             </div>
             <div className="space-y-3">
-              {mockRecentActivities.map((activity) => (
+              {recentActivities.map((activity) => (
                 <div key={activity.id} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg">
                   <div className="flex items-center space-x-4">
                     <div className={`p-2 rounded-lg ${getStatusColor(activity.status)}`}>
@@ -695,6 +771,7 @@ export function Admin() {
           </div>
         </div>
       )}
+      <ToastStack toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 }

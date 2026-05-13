@@ -6,7 +6,9 @@ import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { ToastStack } from '@/components/shared/toast-stack';
 import { vaxenApi } from '@/lib/vaxen-api';
+import { useToastStack } from '@/lib/use-toast-stack';
 import { Button } from '@/ui';
 import { Input } from '@/ui';
 import { Label } from '@/ui';
@@ -23,6 +25,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export function LoginForm() {
   const router = useRouter();
   const t = useTranslations('auth');
+  const { toasts, addToast, removeToast } = useToastStack();
   const [apiError, setApiError] = useState('');
   const [apiMessage, setApiMessage] = useState('');
   
@@ -42,15 +45,21 @@ export function LoginForm() {
       const response = await vaxenApi.auth.login(data);
 
       if ('requiresMfa' in response.data && response.data.requiresMfa && 'challengeId' in response.data) {
-        setApiMessage('MFA required. Enter your MFA code and submit again.');
+        const message = 'MFA required. Enter your MFA code and submit again.';
+        setApiMessage(message);
+        addToast('success', message);
         return;
       }
 
-      setApiMessage('Login successful. Redirecting...');
+      const message = 'Login successful. Redirecting...';
+      setApiMessage(message);
+      addToast('success', message);
       router.push('/dashboard');
       router.refresh();
     } catch (error) {
-      setApiError(error instanceof Error ? error.message : 'Login failed. Please try again.');
+      const message = error instanceof Error ? error.message : 'Login failed. Please try again.';
+      setApiError(message);
+      addToast('error', message);
     }
   };
 
@@ -112,6 +121,7 @@ export function LoginForm() {
           </Button>
         </form>
       </CardContent>
+      <ToastStack toasts={toasts} onDismiss={removeToast} />
     </Card>
   );
 }

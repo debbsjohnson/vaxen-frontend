@@ -32,12 +32,14 @@ import {
 
 import { CurrencyIcon } from '@/components/shared/currency-icon';
 import { ToastStack } from '@/components/shared/toast-stack';
+import {
+  mapBackendBeneficiaryToUi,
+  mapBackendPayoutToUiRecent,
+} from '@/lib/backend-mappers';
 import { vaxenApi } from '@/lib/vaxen-api';
 import {
-  formatAmount,
   formatDateTime,
   formatStatusLabel,
-  getCurrencyName,
 } from '@/lib/formatters';
 import { useToastStack } from '@/lib/use-toast-stack';
 
@@ -154,32 +156,11 @@ export function Payouts() {
           vaxenApi.payouts.list(),
         ]);
 
-        const mappedBeneficiaries = beneficiariesResponse.data.map((beneficiary) => ({
-          id: beneficiary.id,
-          name: beneficiary.name,
-          email: `${beneficiary.type.toUpperCase()} beneficiary`,
-          type: beneficiary.type,
-          bankName: beneficiary.bankName || (beneficiary.type === 'crypto' ? 'Crypto wallet' : 'Bank account'),
-          accountNumber: beneficiary.accountNumber || beneficiary.address || beneficiary.id,
-          routingNumber: beneficiary.routingNumber || '',
-          currency: beneficiary.currency,
-          country: beneficiary.bankCountry || beneficiary.network || getCurrencyName(beneficiary.currency),
-          status: beneficiary.isActive ? 'verified' : 'pending',
-          lastUsed: beneficiary.updatedAt,
-        }));
+        const mappedBeneficiaries = beneficiariesResponse.data.map(mapBackendBeneficiaryToUi);
 
-        const mappedRecentPayouts = payoutsResponse.data.map((payout) => ({
-          id: payout.id,
-          beneficiary:
-            mappedBeneficiaries.find((b) => b.id === payout.beneficiaryId)?.name || payout.beneficiaryId,
-          amount: formatAmount(payout.amount),
-          currency: payout.currency,
-          type: payout.type === 'bank' ? 'wire' : 'crypto',
-          status: payout.status,
-          date: payout.createdAt,
-          reference: payout.reference || `PAY-${payout.id.slice(0, 6).toUpperCase()}`,
-          fee: formatAmount(payout.fee),
-        }));
+        const mappedRecentPayouts = payoutsResponse.data.map((payout) =>
+          mapBackendPayoutToUiRecent(payout, mappedBeneficiaries)
+        );
 
         if (mappedBeneficiaries.length > 0) {
           setBeneficiaries(mappedBeneficiaries);
@@ -267,19 +248,7 @@ export function Payouts() {
 
       const updatedPayouts = await vaxenApi.payouts.list();
       setRecentPayouts(
-        updatedPayouts.data.map((payout) => ({
-          id: payout.id,
-          beneficiary:
-            beneficiaries.find((beneficiary) => beneficiary.id === payout.beneficiaryId)?.name ||
-            payout.beneficiaryId,
-          amount: formatAmount(payout.amount),
-          currency: payout.currency,
-          type: payout.type === 'bank' ? 'wire' : 'crypto',
-          status: payout.status,
-          date: payout.createdAt,
-          reference: payout.reference || `PAY-${payout.id.slice(0, 6).toUpperCase()}`,
-          fee: formatAmount(payout.fee),
-        }))
+        updatedPayouts.data.map((payout) => mapBackendPayoutToUiRecent(payout, beneficiaries))
       );
 
       setAmount('');

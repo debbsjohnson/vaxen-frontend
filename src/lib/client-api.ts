@@ -33,6 +33,7 @@ async function request<TResponse, TBody>(
 ): Promise<TResponse> {
   const fetchOptions: RequestInit = {
     method: options.method,
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
       ...options.headers,

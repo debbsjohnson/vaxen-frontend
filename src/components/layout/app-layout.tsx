@@ -1,8 +1,10 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useLocale } from 'next-intl';
 import { 
   LayoutDashboard, 
   Wallet, 
@@ -17,17 +19,18 @@ import {
   Sun,
   Moon
 } from 'lucide-react';
+import { getStoredAuthUser } from '@/lib/auth-state';
 import { useTheme } from '@/contexts/theme-context';
 
 const navigation = [
-  { name: 'Dashboard', href: '/en/dashboard', icon: LayoutDashboard },
-  { name: 'Wallets', href: '/en/wallets', icon: Wallet },
-  { name: 'Convert', href: '/en/convert', icon: ArrowLeftRight },
-  { name: 'Payouts', href: '/en/payouts', icon: Send },
-  { name: 'Team', href: '/en/team', icon: Users },
-  { name: 'Reports', href: '/en/reports', icon: BarChart3 },
-  { name: 'Settings', href: '/en/settings', icon: Settings },
-  { name: 'Admin', href: '/en/admin', icon: Shield },
+  { name: 'Dashboard', path: 'dashboard', icon: LayoutDashboard },
+  { name: 'Wallets', path: 'wallets', icon: Wallet },
+  { name: 'Convert', path: 'convert', icon: ArrowLeftRight },
+  { name: 'Payouts', path: 'payouts', icon: Send },
+  { name: 'Team', path: 'team', icon: Users },
+  { name: 'Reports', path: 'reports', icon: BarChart3 },
+  { name: 'Settings', path: 'settings', icon: Settings },
+  { name: 'Admin', path: 'admin', icon: Shield },
 ];
 
 function classNames(...classes: string[]) {
@@ -41,16 +44,22 @@ interface AppLayoutProps {
 
 export function AppLayout({ children, currentPage }: AppLayoutProps) {
   const router = useRouter();
+  const locale = useLocale();
   const { theme, toggleTheme } = useTheme();
-  
-  console.log('AppLayout theme:', theme);
+  const authUser = useMemo(() => getStoredAuthUser(), []);
+  const displayName = authUser
+    ? `${authUser.firstName} ${authUser.lastName}`.trim()
+    : 'User';
+  const initials = authUser
+    ? `${authUser.firstName?.[0] || ''}${authUser.lastName?.[0] || ''}`.toUpperCase()
+    : 'U';
 
   return (
     <div className="flex h-screen">
       {/* Sidebar */}
       <div className="flex flex-col w-64 gradient-accent border-r border-slate-700 pattern-overlay-blur pattern-bg-4">
         <div className="flex items-center h-16 px-6 border-b border-slate-700">
-          <Link href="/en/dashboard" className="flex items-center">
+          <Link href={`/${locale}/landing`} className="flex items-center">
             <Image
               src={theme === 'dark' ? '/assets/logo/VAXEN white.png' : '/assets/logo/VAXEN Navy.png'}
               alt="Vaxen Finance"
@@ -66,10 +75,10 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
           {navigation.map((item) => (
             <a
               key={item.name}
-              href={item.href}
+              href={`/${locale}/${item.path}`}
               onClick={(e) => {
                 e.preventDefault();
-                router.push(item.href);
+                router.push(`/${locale}/${item.path}`);
               }}
                   className={classNames(
                     'flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors',
@@ -87,10 +96,10 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
         {/* Bottom section with help and notifications */}
         <div className="px-4 py-4 border-t border-slate-700 space-y-2">
             <a
-              href="/en/help"
+              href={`/${locale}/help`}
               onClick={(e) => {
                 e.preventDefault();
-                router.push('/en/help');
+                router.push(`/${locale}/help`);
               }}
               className="flex items-center px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
             >
@@ -98,10 +107,10 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
               Need Help?
             </a>
           <a
-            href="/en/notifications"
+            href={`/${locale}/notifications`}
             onClick={(e) => {
               e.preventDefault();
-              router.push('/en/notifications');
+              router.push(`/${locale}/notifications`);
             }}
             className="flex items-center px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
           >
@@ -131,13 +140,13 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
             <Link 
-              href="/en/settings"
+              href={`/${locale}/settings`}
               className="flex items-center space-x-3 hover:bg-slate-700/50 rounded-lg px-2 py-1 transition-colors cursor-pointer"
             >
               <div className="w-8 h-8 gradient-primary rounded-full flex items-center justify-center">
-                <span className="text-sm font-medium text-white">JD</span>
+                <span className="text-sm font-medium text-white">{initials}</span>
               </div>
-              <span className="text-sm text-white">John Doe</span>
+              <span className="text-sm text-white">{displayName}</span>
             </Link>
           </div>
         </header>

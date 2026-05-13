@@ -16,7 +16,7 @@ const AuthUserSchema = z.object({
   isDirector: z.boolean(),
   mfaEnabled: z.boolean(),
   lastLoginAt: z.string().optional().nullable(),
-  isActive: z.boolean(),
+  isActive: z.boolean().optional().default(true),
 });
 
 const AuthSessionSchema = z.object({

@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { ToastStack } from '@/components/shared/toast-stack';
+import { setClientAuthState } from '@/lib/auth-state';
 import { vaxenApi } from '@/lib/vaxen-api';
 import { useToastStack } from '@/lib/use-toast-stack';
 import { Button } from '@/ui';
@@ -24,6 +25,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
   const router = useRouter();
+  const locale = useLocale();
   const t = useTranslations('auth');
   const { toasts, addToast, removeToast } = useToastStack();
   const [apiError, setApiError] = useState('');
@@ -54,7 +56,15 @@ export function LoginForm() {
       const message = 'Login successful. Redirecting...';
       setApiMessage(message);
       addToast('success', message);
-      router.push('/dashboard');
+
+      if (!('requiresMfa' in response.data)) {
+        setClientAuthState({
+          csrfToken: response.data.csrfToken,
+          user: response.data.user,
+        });
+      }
+
+      router.replace(`/${locale}/dashboard`);
       router.refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Login failed. Please try again.';

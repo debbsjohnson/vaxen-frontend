@@ -32,7 +32,7 @@ export type AuthUser = {
   isDirector: boolean;
   mfaEnabled: boolean;
   lastLoginAt?: IsoDateTimeString | null;
-  isActive: boolean;
+  isActive?: boolean;
   createdAt?: IsoDateTimeString;
   updatedAt?: IsoDateTimeString;
 };

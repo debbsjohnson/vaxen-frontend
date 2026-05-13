@@ -169,7 +169,7 @@ export const vaxenApi = {
   },
 
   organizations: {
-    list: () => getV1<BackendResponse<BackendOrganization>>('/organizations/'),
+    list: () => getV1<BackendResponse<BackendOrganization>>('/organizations'),
     getById: (id: string) => getV1<BackendResponse<BackendOrganization>>(`/organizations/${id}`),
     update: (id: string, payload: UpdateOrganizationInput, options?: HeadersOptions) =>
       putV1<BackendResponse<BackendOrganization>, UpdateOrganizationInput>(`/organizations/${id}`, payload, options),
@@ -183,7 +183,7 @@ export const vaxenApi = {
 
   wallets: {
     list: async () => {
-      const response = await getV1<BackendResponse<BackendWallet[]>>('/wallets/');
+      const response = await getV1<BackendResponse<BackendWallet[]>>('/wallets');
       return validateWalletListResponse(response);
     },
     web3: () => getV1<BackendResponse<BackendWeb3Wallet[]>>('/wallets/web3'),
@@ -193,7 +193,7 @@ export const vaxenApi = {
     },
     create: async (payload: CreateWalletInput, options?: HeadersOptions) => {
       const response = await postV1<BackendResponse<BackendWallet | BackendWeb3Wallet>, CreateWalletInput>(
-        '/wallets/',
+        '/wallets',
         payload,
         options
       );
@@ -203,43 +203,43 @@ export const vaxenApi = {
   },
 
   accounts: {
-    list: () => getV1<BackendResponse<BackendAccount[]>>('/accounts/'),
+    list: () => getV1<BackendResponse<BackendAccount[]>>('/accounts'),
     getById: (id: string) => getV1<BackendResponse<BackendAccount>>(`/accounts/${id}`),
     create: (payload: CreateAccountInput, options?: HeadersOptions) =>
-      postV1<BackendResponse<BackendAccount>, CreateAccountInput>('/accounts/', payload, options),
+      postV1<BackendResponse<BackendAccount>, CreateAccountInput>('/accounts', payload, options),
   },
 
   quotes: {
     create: (payload: CreateQuoteInput, options?: HeadersOptions) =>
-      postV1<BackendResponse<BackendQuote>, CreateQuoteInput>('/quotes/', payload, options),
+      postV1<BackendResponse<BackendQuote>, CreateQuoteInput>('/quotes', payload, options),
     getById: (id: string) => getV1<BackendResponse<BackendQuote>>(`/quotes/${id}`),
   },
 
   conversions: {
-    list: () => getV1<BackendResponse<BackendOrderSummary[]>>('/conversions/'),
+    list: () => getV1<BackendResponse<BackendOrderSummary[]>>('/conversions'),
     getById: (id: string) => getV1<BackendResponse<BackendOrderSummary>>(`/conversions/${id}`),
     create: (payload: CreateConversionInput, options?: HeadersOptions) =>
-      postV1<BackendResponse<BackendConversionOrder>, CreateConversionInput>('/conversions/', payload, options),
+      postV1<BackendResponse<BackendConversionOrder>, CreateConversionInput>('/conversions', payload, options),
     pairs: () => getV1<BackendResponse<string[]>>('/conversions/pairs'),
     rate: (params: RateQuery) =>
       getV1<BackendResponse<string | Record<string, unknown>>>(`/conversions/rate${queryString(params)}`),
   },
 
   orders: {
-    list: () => getV1<BackendResponse<BackendOrderSummary[]>>('/orders/'),
+    list: () => getV1<BackendResponse<BackendOrderSummary[]>>('/orders'),
     open: () => getV1<BackendResponse<BackendOrderSummary[]>>('/orders/open'),
     getById: (id: string) => getV1<BackendResponse<BackendOrderSummary>>(`/orders/${id}`),
     create: (payload: CreateOrderInput, options?: HeadersOptions) =>
-      postV1<BackendResponse<IdMessageResponse>, CreateOrderInput>('/orders/', payload, options),
+      postV1<BackendResponse<IdMessageResponse>, CreateOrderInput>('/orders', payload, options),
     cancel: (id: string, options?: HeadersOptions) =>
       putV1<BackendResponse<IdMessageResponse>, Record<string, never>>(`/orders/${id}/cancel`, {}, options),
   },
 
   beneficiaries: {
-    list: () => getV1<BackendResponse<BackendBeneficiary[]>>('/beneficiaries/'),
+    list: () => getV1<BackendResponse<BackendBeneficiary[]>>('/beneficiaries'),
     getById: (id: string) => getV1<BackendResponse<BackendBeneficiary>>(`/beneficiaries/${id}`),
     create: (payload: CreateBeneficiaryInput, options?: HeadersOptions) =>
-      postV1<BackendResponse<BackendBeneficiary>, CreateBeneficiaryInput>('/beneficiaries/', payload, options),
+      postV1<BackendResponse<BackendBeneficiary>, CreateBeneficiaryInput>('/beneficiaries', payload, options),
     update: (id: string, payload: UpdateBeneficiaryInput, options?: HeadersOptions) =>
       putV1<BackendResponse<BackendBeneficiary>, UpdateBeneficiaryInput>(`/beneficiaries/${id}`, payload, options),
     remove: (id: string, options?: HeadersOptions) =>
@@ -248,7 +248,7 @@ export const vaxenApi = {
 
   payouts: {
     list: async () => {
-      const response = await getV1<BackendResponse<BackendPayout[]>>('/payouts/');
+      const response = await getV1<BackendResponse<BackendPayout[]>>('/payouts');
       return validatePayoutListResponse(response);
     },
     getById: async (id: string) => {
@@ -256,7 +256,7 @@ export const vaxenApi = {
       return validatePayoutResponse(response);
     },
     create: async (payload: CreatePayoutInput, options?: HeadersOptions) => {
-      const response = await postV1<BackendResponse<BackendPayout>, CreatePayoutInput>('/payouts/', payload, options);
+      const response = await postV1<BackendResponse<BackendPayout>, CreatePayoutInput>('/payouts', payload, options);
       return validatePayoutResponse(response);
     },
     fees: (params: PayoutFeesQuery) =>
@@ -281,7 +281,7 @@ export const vaxenApi = {
   },
 
   statements: {
-    list: () => getV1<BackendResponse<BackendStatement[]>>('/statements/'),
+    list: () => getV1<BackendResponse<BackendStatement[]>>('/statements'),
     getById: (id: string) => getV1<BackendResponse<BackendStatement>>(`/statements/${id}`),
   },
 
@@ -296,7 +296,7 @@ export const vaxenApi = {
   },
 
   providers: {
-    list: () => getV1<BackendResponse<BackendProvider[]>>('/providers/'),
+    list: () => getV1<BackendResponse<BackendProvider[]>>('/providers'),
     getById: (id: string) => getV1<BackendResponse<BackendProvider>>(`/providers/${id}`),
   },
 

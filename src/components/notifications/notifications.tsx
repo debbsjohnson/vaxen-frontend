@@ -48,6 +48,9 @@ import {
   Monitor,
   MessageCircle
 } from 'lucide-react';
+import { ToastStack } from '@/components/shared/toast-stack';
+import { vaxenApi } from '@/lib/vaxen-api';
+import { useToastStack } from '@/lib/use-toast-stack';
 
 // Mock notification data
 const mockNotifications = [
@@ -205,7 +208,9 @@ const priorityConfig = {
 };
 
 export function Notifications() {
+  const { toasts, addToast, removeToast } = useToastStack();
   const [notifications, setNotifications] = useState(mockNotifications);
+  const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
@@ -227,6 +232,56 @@ export function Notifications() {
       market: false
     }
   });
+
+  const loadNotifications = async (showFeedback = false) => {
+    setIsLoading(true);
+
+    try {
+      const response = await vaxenApi.reports.auditLogs({ page: 1, limit: 50 });
+      const mapped = response.data.map((log, index) => {
+        const actionText = log.action?.replace(/[_-]+/g, ' ') || 'activity';
+        const resourceText = log.resource?.replace(/[_-]+/g, ' ') || 'system';
+
+        return {
+          id: log.id,
+          type: (['transaction', 'security', 'system'].includes(log.resource) ? log.resource : 'system') as
+            | 'transaction'
+            | 'security'
+            | 'system',
+          priority: index < 2 ? 'high' : 'medium',
+          title: actionText.replace(/\b\w/g, (char) => char.toUpperCase()),
+          message: `${resourceText} activity recorded for ${log.userId || 'system user'}.`,
+          timestamp: log.createdAt,
+          read: false,
+          category: log.resource || 'system',
+          action: log.action,
+          metadata: {
+            resource: log.resource,
+            resourceId: log.resourceId,
+            ipAddress: log.ipAddress,
+          },
+        };
+      });
+
+      if (mapped.length > 0) {
+        setNotifications(mapped);
+      }
+
+      if (showFeedback) {
+        addToast('success', 'Notifications refreshed from backend.');
+      }
+    } catch {
+      if (showFeedback) {
+        addToast('error', 'Unable to refresh notifications right now.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
 
   // Filter notifications based on current filter and search
   const filteredNotifications = notifications.filter(notification => {
@@ -345,6 +400,13 @@ export function Notifications() {
               {unreadCount} unread
             </span>
           </div>
+          <button
+            onClick={() => loadNotifications(true)}
+            disabled={isLoading}
+            className="p-2 border border-slate-600 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
           <button
             onClick={() => setShowSettings(!showSettings)}
             className="p-2 border border-slate-600 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors"
@@ -489,7 +551,13 @@ export function Notifications() {
 
       {/* Notifications List */}
       <div className="space-y-3">
-        {filteredNotifications.length === 0 ? (
+        {isLoading ? (
+          <div className="gradient-card border border-slate-600 rounded-lg p-8 shadow-lg text-center">
+            <RefreshCw className="h-8 w-8 text-slate-400 mx-auto mb-3 animate-spin" />
+            <h3 className="text-lg font-semibold text-white mb-2">Loading notifications...</h3>
+            <p className="text-slate-400">Fetching activity from backend</p>
+          </div>
+        ) : filteredNotifications.length === 0 ? (
           <div className="gradient-card border border-slate-600 rounded-lg p-8 shadow-lg text-center">
             <Bell className="h-12 w-12 text-slate-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-white mb-2">No notifications found</h3>
@@ -599,6 +667,7 @@ export function Notifications() {
           </button>
         </div>
       )}
+      <ToastStack toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 }

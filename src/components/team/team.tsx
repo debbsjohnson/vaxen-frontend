@@ -99,6 +99,7 @@ export function Team() {
   const [searchTerm, setSearchTerm] = useState('');
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
   const [teamMembers, setTeamMembers] = useState(mockTeamMembers);
   const [pendingApprovals, setPendingApprovals] = useState(mockPendingApprovals);
 
@@ -113,6 +114,7 @@ export function Team() {
     let cancelled = false;
 
     const loadTeamData = async () => {
+      setIsLoading(true);
       try {
         const [usersResponse, approvalsResponse] = await Promise.all([
           vaxenApi.admin.users.list({ page: 1, limit: 100 }),
@@ -155,6 +157,10 @@ export function Team() {
         }
       } catch {
         addToast('error', 'Unable to load team data from backend.');
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -283,7 +289,12 @@ export function Team() {
 
           {/* Members Table */}
           <div className="gradient-card border border-slate-600 rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
+            {isLoading ? (
+              <div className="p-8 text-center text-slate-300">Loading team members...</div>
+            ) : filteredMembers.length === 0 ? (
+              <div className="p-8 text-center text-slate-300">No team members found.</div>
+            ) : (
+              <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="gradient-primary">
                   <tr>
@@ -333,7 +344,8 @@ export function Team() {
                   ))}
                 </tbody>
               </table>
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Pagination */}
@@ -445,7 +457,7 @@ export function Team() {
             </div>
           </div>
 
-          {pendingApprovals.length === 0 && (
+          {!isLoading && pendingApprovals.length === 0 && (
             <div className="text-center py-12">
               <div className="text-slate-400 text-lg">No pending approvals</div>
               <div className="text-slate-500 text-sm mt-2">All team member requests have been processed</div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   User,
   Shield,
@@ -42,13 +42,19 @@ import {
   RefreshCw,
   FileText
 } from 'lucide-react';
+import { ToastStack } from '@/components/shared/toast-stack';
+import { vaxenApi } from '@/lib/vaxen-api';
+import { useToastStack } from '@/lib/use-toast-stack';
 
 export function Settings() {
+  const { toasts, addToast, removeToast } = useToastStack();
   const [activeTab, setActiveTab] = useState('profile');
   const [showPassword, setShowPassword] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
 
   // Form states
   const [profile, setProfile] = useState({
@@ -84,12 +90,95 @@ export function Settings() {
     sessionTimeout: 60
   });
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSettings = async () => {
+      try {
+        const response = await vaxenApi.organizations.list();
+        const organization = response.data;
+
+        if (cancelled) {
+          return;
+        }
+
+        setOrganizationId(organization.id);
+        setProfile((prev) => ({
+          ...prev,
+          company: organization.name || prev.company,
+          country: organization.country || prev.country,
+        }));
+      } catch {
+        if (!cancelled) {
+          addToast('error', 'Unable to load account settings from backend.');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingProfile(false);
+        }
+      }
+    };
+
+    loadSettings();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [addToast]);
+
   const handleSave = async () => {
     setIsSaving(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    setIsEditing(false);
+
+    try {
+      const operations: Promise<unknown>[] = [];
+
+      if (organizationId) {
+        operations.push(
+          vaxenApi.organizations.update(organizationId, {
+            name: profile.company,
+            country: profile.country,
+          })
+        );
+      }
+
+      operations.push(
+        vaxenApi.admin.settings.update({
+          key: 'timezone',
+          value: profile.timezone,
+          category: 'profile',
+        })
+      );
+
+      operations.push(
+        vaxenApi.admin.settings.update({
+          key: 'language',
+          value: profile.language,
+          category: 'profile',
+        })
+      );
+
+      operations.push(
+        vaxenApi.admin.settings.update({
+          key: 'default_currency',
+          value: preferences.defaultCurrency,
+          category: 'preferences',
+        })
+      );
+
+      const results = await Promise.allSettled(operations);
+      const successCount = results.filter((result) => result.status === 'fulfilled').length;
+
+      if (successCount > 0) {
+        addToast('success', 'Settings saved successfully.');
+        setIsEditing(false);
+      } else {
+        addToast('error', 'Unable to save settings right now.');
+      }
+    } catch {
+      addToast('error', 'Unable to save settings right now.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -169,6 +258,12 @@ export function Settings() {
           )}
         </div>
       </div>
+
+      {isLoadingProfile && (
+        <div className="gradient-card border border-slate-600 rounded-lg p-4 text-sm text-slate-300">
+          Loading account settings...
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Sidebar Navigation */}
@@ -727,6 +822,7 @@ export function Settings() {
           )}
         </div>
       </div>
+      <ToastStack toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 }

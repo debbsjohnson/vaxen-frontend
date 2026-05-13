@@ -117,6 +117,7 @@ const mockPaymentMethods = [
 
 export function Reports() {
   const { toasts, addToast, removeToast } = useToastStack();
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
   const [selectedCurrency, setSelectedCurrency] = useState('all');
@@ -231,6 +232,7 @@ export function Reports() {
       }
     } finally {
       setIsRefreshing(false);
+      setIsInitialLoading(false);
     }
   };
 
@@ -289,7 +291,13 @@ export function Reports() {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {keyMetrics.map((metric, index) => (
+        {isInitialLoading ? [1, 2, 3, 4].map((placeholder) => (
+          <div key={placeholder} className="gradient-card border border-slate-600 rounded-lg p-6 animate-pulse">
+            <div className="h-4 w-24 bg-slate-700 rounded mb-3" />
+            <div className="h-8 w-28 bg-slate-700 rounded mb-3" />
+            <div className="h-4 w-16 bg-slate-700 rounded" />
+          </div>
+        )) : keyMetrics.map((metric, index) => (
           <div key={index} className="gradient-card border border-slate-600 rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -329,7 +337,12 @@ export function Reports() {
         
         {expandedSections.volume && (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {volumeByCurrency.length === 0 ? (
+              <div className="p-6 text-center text-slate-300 bg-slate-800/50 rounded-lg">
+                No volume data available for the selected filters.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Currency Breakdown */}
               <div className="space-y-4">
                 {volumeByCurrency.map((item, index) => (
@@ -370,6 +383,7 @@ export function Reports() {
                 </div>
               </div>
             </div>
+            )}
           </div>
         )}
       </div>

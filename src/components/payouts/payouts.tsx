@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Send,
   Users,
@@ -31,6 +31,15 @@ import {
 } from 'lucide-react';
 
 import { CurrencyIcon } from '@/components/shared/currency-icon';
+import { ToastStack } from '@/components/shared/toast-stack';
+import { vaxenApi } from '@/lib/vaxen-api';
+import {
+  formatAmount,
+  formatDateTime,
+  formatStatusLabel,
+  getCurrencyName,
+} from '@/lib/formatters';
+import { useToastStack } from '@/lib/use-toast-stack';
 
 // Mock data for beneficiaries
 const mockBeneficiaries = [
@@ -124,6 +133,7 @@ const mockRecentPayouts = [
 ];
 
 export function Payouts() {
+  const { toasts, addToast, removeToast } = useToastStack();
   const [activeTab, setActiveTab] = useState('send');
   const [selectedBeneficiary, setSelectedBeneficiary] = useState('');
   const [amount, setAmount] = useState('');
@@ -132,6 +142,63 @@ export function Payouts() {
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [beneficiaries, setBeneficiaries] = useState(mockBeneficiaries);
+  const [recentPayouts, setRecentPayouts] = useState(mockRecentPayouts);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadPayoutData = async () => {
+      try {
+        const [beneficiariesResponse, payoutsResponse] = await Promise.all([
+          vaxenApi.beneficiaries.list(),
+          vaxenApi.payouts.list(),
+        ]);
+
+        const mappedBeneficiaries = beneficiariesResponse.data.map((beneficiary) => ({
+          id: beneficiary.id,
+          name: beneficiary.name,
+          email: `${beneficiary.type.toUpperCase()} beneficiary`,
+          type: beneficiary.type,
+          bankName: beneficiary.bankName || (beneficiary.type === 'crypto' ? 'Crypto wallet' : 'Bank account'),
+          accountNumber: beneficiary.accountNumber || beneficiary.address || beneficiary.id,
+          routingNumber: beneficiary.routingNumber || '',
+          currency: beneficiary.currency,
+          country: beneficiary.bankCountry || beneficiary.network || getCurrencyName(beneficiary.currency),
+          status: beneficiary.isActive ? 'verified' : 'pending',
+          lastUsed: beneficiary.updatedAt,
+        }));
+
+        const mappedRecentPayouts = payoutsResponse.data.map((payout) => ({
+          id: payout.id,
+          beneficiary:
+            mappedBeneficiaries.find((b) => b.id === payout.beneficiaryId)?.name || payout.beneficiaryId,
+          amount: formatAmount(payout.amount),
+          currency: payout.currency,
+          type: payout.type === 'bank' ? 'wire' : 'crypto',
+          status: payout.status,
+          date: payout.createdAt,
+          reference: payout.reference || `PAY-${payout.id.slice(0, 6).toUpperCase()}`,
+          fee: formatAmount(payout.fee),
+        }));
+
+        if (mappedBeneficiaries.length > 0) {
+          setBeneficiaries(mappedBeneficiaries);
+        }
+
+        if (mappedRecentPayouts.length > 0) {
+          setRecentPayouts(mappedRecentPayouts);
+        }
+      } catch {
+        setBeneficiaries(mockBeneficiaries);
+        setRecentPayouts(mockRecentPayouts);
+        addToast('error', 'Unable to load payout data. Showing fallback values.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadPayoutData();
+  }, [addToast]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -179,24 +246,51 @@ export function Payouts() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
-    });
+    return formatDateTime(dateString);
   };
 
   const handleSendPayout = async () => {
+    if (!selectedBeneficiary || !amount || Number(amount) <= 0) {
+      addToast('error', 'Please select a beneficiary and enter a valid amount.');
+      return;
+    }
+
     setIsProcessing(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsProcessing(false);
-    // Reset form
-    setAmount('');
-    setReference('');
-    setNotes('');
+    try {
+      await vaxenApi.payouts.create({
+        beneficiaryId: selectedBeneficiary,
+        amount,
+        currency,
+        reference,
+        description: notes,
+      });
+
+      const updatedPayouts = await vaxenApi.payouts.list();
+      setRecentPayouts(
+        updatedPayouts.data.map((payout) => ({
+          id: payout.id,
+          beneficiary:
+            beneficiaries.find((beneficiary) => beneficiary.id === payout.beneficiaryId)?.name ||
+            payout.beneficiaryId,
+          amount: formatAmount(payout.amount),
+          currency: payout.currency,
+          type: payout.type === 'bank' ? 'wire' : 'crypto',
+          status: payout.status,
+          date: payout.createdAt,
+          reference: payout.reference || `PAY-${payout.id.slice(0, 6).toUpperCase()}`,
+          fee: formatAmount(payout.fee),
+        }))
+      );
+
+      setAmount('');
+      setReference('');
+      setNotes('');
+      addToast('success', 'Payout created successfully.');
+    } catch {
+      addToast('error', 'Failed to create payout. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -208,6 +302,7 @@ export function Payouts() {
           <p className="text-sm text-slate-300 mt-1">
             Send payments to beneficiaries worldwide with competitive rates
           </p>
+          {isLoading && <p className="text-xs text-slate-400 mt-2">Loading payout data...</p>}
         </div>
         <div className="flex items-center space-x-3">
           <button className="flex items-center px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors">
@@ -274,7 +369,7 @@ export function Payouts() {
                       className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
                     >
                       <option value="">Choose a beneficiary...</option>
-                      {mockBeneficiaries.map((beneficiary) => (
+                      {beneficiaries.map((beneficiary) => (
                         <option key={beneficiary.id} value={beneficiary.id}>
                           {beneficiary.name} - {beneficiary.type === 'bank' ? beneficiary.bankName : beneficiary.currency}
                         </option>
@@ -485,7 +580,7 @@ export function Payouts() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700">
-                  {mockBeneficiaries.map((beneficiary) => (
+                  {beneficiaries.map((beneficiary) => (
                     <tr key={beneficiary.id} className="hover:bg-slate-800/50 transition-colors">
                       <td className="px-6 py-4">
                         <div>
@@ -517,7 +612,7 @@ export function Payouts() {
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(beneficiary.status)}`}>
                           {getStatusIcon(beneficiary.status)}
-                          <span className="ml-1 capitalize">{beneficiary.status}</span>
+                          <span className="ml-1">{formatStatusLabel(beneficiary.status)}</span>
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-300">
@@ -578,7 +673,7 @@ export function Payouts() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700">
-                  {mockRecentPayouts.map((payout) => (
+                  {recentPayouts.map((payout) => (
                     <tr key={payout.id} className="hover:bg-slate-800/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="text-sm font-medium text-white">{payout.reference}</div>
@@ -604,7 +699,7 @@ export function Payouts() {
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(payout.status)}`}>
                           {getStatusIcon(payout.status)}
-                          <span className="ml-1 capitalize">{payout.status}</span>
+                          <span className="ml-1">{formatStatusLabel(payout.status)}</span>
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-300">
@@ -628,6 +723,7 @@ export function Payouts() {
           </div>
         </div>
       )}
+      <ToastStack toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 }

@@ -1,9 +1,12 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { vaxenApi } from '@/lib/vaxen-api';
 import { Button } from '@/ui';
 import { Input } from '@/ui';
 import { Label } from '@/ui';
@@ -18,7 +21,10 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
+  const router = useRouter();
   const t = useTranslations('auth');
+  const [apiError, setApiError] = useState('');
+  const [apiMessage, setApiMessage] = useState('');
   
   const {
     register,
@@ -29,10 +35,23 @@ export function LoginForm() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    // Mock login - replace with actual API call
-    console.log('Login data:', data);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    setApiError('');
+    setApiMessage('');
+
+    try {
+      const response = await vaxenApi.auth.login(data);
+
+      if ('requiresMfa' in response.data && response.data.requiresMfa && 'challengeId' in response.data) {
+        setApiMessage('MFA required. Enter your MFA code and submit again.');
+        return;
+      }
+
+      setApiMessage('Login successful. Redirecting...');
+      router.push('/dashboard');
+      router.refresh();
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : 'Login failed. Please try again.');
+    }
   };
 
   return (
@@ -45,6 +64,9 @@ export function LoginForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {apiError && <p className="text-sm text-destructive">{apiError}</p>}
+          {apiMessage && <p className="text-sm text-green-600">{apiMessage}</p>}
+
           <div className="space-y-2">
             <Label htmlFor="email">{t('email')}</Label>
             <Input

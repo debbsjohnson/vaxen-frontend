@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Loader2, CheckCircle } from 'lucide-react';
-import { postJson } from '@/lib/client-api';
+import { vaxenApi } from '@/lib/vaxen-api';
 
 interface RequestAccessFormProps {
   onSuccess?: () => void;
@@ -96,6 +96,15 @@ export function RequestAccessForm({ onSuccess }: RequestAccessFormProps) {
       return;
     }
 
+    const trimmedName = formData.name.trim();
+    const [firstName = '', ...lastNameParts] = trimmedName.split(/\s+/);
+    const lastName = lastNameParts.join(' ').trim();
+
+    if (!firstName || !lastName) {
+      setError('Please provide your first and last name.');
+      return;
+    }
+
     if (!formData.markets.length) {
       setError('Please select at least one primary market.');
       return;
@@ -104,7 +113,20 @@ export function RequestAccessForm({ onSuccess }: RequestAccessFormProps) {
     setIsSubmitting(true);
 
     try {
-      await postJson('/api/auth/request-access', formData);
+      await vaxenApi.auth.requestAccess({
+        firstName,
+        lastName,
+        company: formData.company,
+        email: formData.email,
+        role: formData.role,
+        country: formData.country,
+        markets: formData.markets,
+        annualVolume: formData.annualVolume,
+        useCase: formData.useCase,
+        website: formData.website,
+        notes: formData.notes,
+        honeypot: formData.honeypot,
+      });
 
       setIsSuccess(true);
       

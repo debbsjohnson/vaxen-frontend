@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Plus,
   Wallet,
@@ -24,6 +24,17 @@ import {
   XCircle
 } from 'lucide-react';
 import { CurrencyIcon } from '@/components/shared/currency-icon';
+import { ToastStack } from '@/components/shared/toast-stack';
+import { vaxenApi } from '@/lib/vaxen-api';
+import {
+  formatAmount,
+  formatDateTime,
+  formatStatusLabel,
+  getCurrencyName,
+  getCurrencySymbol,
+  parseAmount,
+} from '@/lib/formatters';
+import { useToastStack } from '@/lib/use-toast-stack';
 
 // Mock data for wallet balances
 const mockWalletBalances = [
@@ -333,16 +344,73 @@ const mockTransactions = [
 ];
 
 export function Wallets() {
+  const { toasts, addToast, removeToast } = useToastStack();
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
   const [activeTab, setActiveTab] = useState('balances');
   const [transactionFilter, setTransactionFilter] = useState('all');
+  const [walletBalances, setWalletBalances] = useState(mockWalletBalances);
+  const [transactions, setTransactions] = useState(mockTransactions);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const totalBalance = mockWalletBalances.reduce((sum, balance) => {
+  useEffect(() => {
+    const loadWalletData = async () => {
+      try {
+        const [walletsResponse, payoutsResponse] = await Promise.all([
+          vaxenApi.wallets.list(),
+          vaxenApi.payouts.list(),
+        ]);
+
+        const mappedWallets = walletsResponse.data.map((wallet) => {
+          const available = parseAmount(wallet.availableBalance);
+          const pending = parseAmount(wallet.pendingBalance);
+          return {
+            currency: wallet.currency,
+            name: getCurrencyName(wallet.currency),
+            flag: '',
+            available: formatAmount(wallet.availableBalance),
+            total: formatAmount(wallet.balance),
+            usdValue: formatAmount(wallet.availableBalance),
+            change: pending > 0 ? `Pending ${formatAmount(wallet.pendingBalance)}` : wallet.isActive ? 'Active' : 'Inactive',
+            changeType: wallet.isActive ? ('positive' as const) : ('negative' as const),
+          };
+        });
+
+        const mappedTransactions = payoutsResponse.data.map((payout) => ({
+          id: payout.id,
+          date: payout.createdAt,
+          type: 'withdrawal',
+          currency: payout.currency,
+          amount: formatAmount(payout.amount),
+          rate: '1.0',
+          description: payout.reference || payout.description || `Payout ${payout.id}`,
+          status: payout.status,
+        }));
+
+        if (mappedWallets.length > 0) {
+          setWalletBalances(mappedWallets);
+        }
+
+        if (mappedTransactions.length > 0) {
+          setTransactions(mappedTransactions);
+        }
+      } catch {
+        setWalletBalances(mockWalletBalances);
+        setTransactions(mockTransactions);
+        addToast('error', 'Unable to load wallet data. Showing fallback values.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadWalletData();
+  }, [addToast]);
+
+  const totalBalance = walletBalances.reduce((sum, balance) => {
     return sum + parseFloat(balance.usdValue.replace(/,/g, ''));
   }, 0);
 
   // Filter transactions based on selected filter
-  const filteredTransactions = mockTransactions.filter(transaction => {
+  const filteredTransactions = transactions.filter(transaction => {
     if (transactionFilter === 'all') return true;
     return transaction.type === transactionFilter;
   });
@@ -356,6 +424,7 @@ export function Wallets() {
           <p className="text-sm text-slate-300 mt-1">
             Manage your multi-currency treasury and transaction history
           </p>
+          {isLoading && <p className="text-xs text-slate-400 mt-2">Loading wallet data...</p>}
         </div>
         <div className="flex items-center space-x-3">
           <button className="px-4 py-2 gradient-primary text-white text-sm rounded-lg hover:opacity-90 transition-all shadow-lg">
@@ -435,7 +504,7 @@ export function Wallets() {
       {/* Content based on active tab */}
       {activeTab === 'balances' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {mockWalletBalances.map((balance) => (
+          {walletBalances.map((balance) => (
             <div key={balance.currency} className="p-4 gradient-card border border-slate-600 rounded-lg pattern-overlay pattern-bg-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-3">
@@ -452,7 +521,7 @@ export function Wallets() {
 
               <div className="mb-3">
                 <p className="text-lg font-bold text-white">
-                  {balance.currency === 'USD' ? '$' : balance.currency === 'EUR' ? '€' : balance.currency === 'GBP' ? '£' : balance.currency === 'BRL' ? 'R$' : '$'}{balance.available}
+                  {getCurrencySymbol(balance.currency)} {balance.available}
                 </p>
                 <p className="text-sm text-slate-300">
                   ${balance.usdValue} USD
@@ -512,7 +581,7 @@ export function Wallets() {
                   : 'text-slate-300 hover:text-white hover:bg-slate-700'
               }`}
             >
-              All ({mockTransactions.length})
+              All ({transactions.length})
             </button>
             <button
               onClick={() => setTransactionFilter('conversion')}
@@ -522,7 +591,7 @@ export function Wallets() {
                   : 'text-slate-300 hover:text-white hover:bg-slate-700'
               }`}
             >
-              Conversions ({mockTransactions.filter(t => t.type === 'conversion').length})
+              Conversions ({transactions.filter(t => t.type === 'conversion').length})
             </button>
             <button
               onClick={() => setTransactionFilter('withdrawal')}
@@ -532,7 +601,7 @@ export function Wallets() {
                   : 'text-slate-300 hover:text-white hover:bg-slate-700'
               }`}
             >
-              Withdrawals ({mockTransactions.filter(t => t.type === 'withdrawal').length})
+              Withdrawals ({transactions.filter(t => t.type === 'withdrawal').length})
             </button>
             <button
               onClick={() => setTransactionFilter('deposit')}
@@ -542,7 +611,7 @@ export function Wallets() {
                   : 'text-slate-300 hover:text-white hover:bg-slate-700'
               }`}
             >
-              Deposits ({mockTransactions.filter(t => t.type === 'deposit').length})
+              Deposits ({transactions.filter(t => t.type === 'deposit').length})
             </button>
           </div>
 
@@ -565,13 +634,7 @@ export function Wallets() {
                   {filteredTransactions.map((transaction) => (
                     <tr key={transaction.id} className="hover:bg-slate-800/50 transition-colors">
                       <td className="px-4 py-3 text-sm text-slate-300">
-                        {new Date(transaction.date).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: 'numeric',
-                          minute: '2-digit'
-                        })}
+                        {formatDateTime(transaction.date)}
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-300 capitalize">
                         {transaction.type}
@@ -607,7 +670,7 @@ export function Wallets() {
                           ) : (
                             <XCircle className="h-3 w-3 mr-1" />
                           )}
-                          {transaction.status.toUpperCase()}
+                          {formatStatusLabel(transaction.status)}
                         </span>
                       </td>
                     </tr>
@@ -618,6 +681,7 @@ export function Wallets() {
           </div>
         </div>
       )}
+      <ToastStack toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   DollarSign,
@@ -14,9 +14,19 @@ import {
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/app-layout';
 import { CurrencyIcon } from '@/components/shared/currency-icon';
+import { ToastStack } from '@/components/shared/toast-stack';
+import { vaxenApi } from '@/lib/vaxen-api';
+import {
+  formatAmount,
+  formatStatusLabel,
+  getCurrencyName,
+  getCurrencySymbol,
+  parseAmount,
+} from '@/lib/formatters';
+import { useToastStack } from '@/lib/use-toast-stack';
 
 // Mock data
-const mockBalances = [
+const fallbackBalances = [
   { 
     currency: 'USD', 
     amount: '300,000.00', 
@@ -55,7 +65,7 @@ const mockBalances = [
   },
 ];
 
-const mockTransactions = [
+const fallbackTransactions = [
   {
     id: '1',
     type: 'conversion',
@@ -88,7 +98,68 @@ const mockTransactions = [
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { toasts, addToast, removeToast } = useToastStack();
   const [showBalances, setShowBalances] = useState(true);
+  const [balances, setBalances] = useState(fallbackBalances);
+  const [transactions, setTransactions] = useState(fallbackTransactions);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      try {
+        const [walletsResponse, payoutsResponse] = await Promise.all([
+          vaxenApi.wallets.list(),
+          vaxenApi.payouts.list(),
+        ]);
+
+        const mappedBalances = walletsResponse.data.slice(0, 8).map((wallet) => ({
+          currency: wallet.currency,
+          amount: formatAmount(wallet.availableBalance),
+          change:
+            parseAmount(wallet.pendingBalance) > 0
+              ? `Pending ${formatAmount(wallet.pendingBalance)}`
+              : wallet.isActive
+              ? 'Active'
+              : 'Inactive',
+          changeType: (wallet.isActive ? 'positive' : 'negative') as const,
+          symbol: getCurrencySymbol(wallet.currency),
+          flag: '',
+          name: getCurrencyName(wallet.currency),
+        }));
+
+        const mappedTransactions = payoutsResponse.data.slice(0, 6).map((payout) => ({
+          id: payout.id,
+          type: 'payout',
+          amount: formatAmount(payout.amount),
+          currency: payout.currency,
+          description: payout.reference || payout.description || `Payout to ${payout.beneficiaryId}`,
+          status: payout.status,
+          date: payout.createdAt,
+        }));
+
+        if (mappedBalances.length > 0) {
+          setBalances(mappedBalances);
+        }
+
+        if (mappedTransactions.length > 0) {
+          setTransactions(mappedTransactions);
+        }
+      } catch {
+        setBalances(fallbackBalances);
+        setTransactions(fallbackTransactions);
+        addToast('error', 'Unable to load dashboard data. Showing fallback values.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboard();
+  }, [addToast]);
+
+  const totalBalance = balances.reduce((sum, balance) => {
+    const value = Number(balance.amount.replace(/,/g, ''));
+    return sum + (Number.isNaN(value) ? 0 : value);
+  }, 0);
 
   return (
     <AppLayout currentPage="Dashboard">
@@ -98,6 +169,7 @@ export default function DashboardPage() {
           <p className="text-sm text-slate-300 mt-2">
             Welcome back! Here's an overview of your treasury operations.
           </p>
+          {loading && <p className="text-xs text-slate-400 mt-2">Loading dashboard data...</p>}
         </div>
 
         {/* Total Balance Card */}
@@ -107,7 +179,12 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm font-medium opacity-90">TOTAL BALANCE</p>
                 <p className="text-3xl font-bold mt-1">
-                  {showBalances ? '$750,000.00' : '••••••'}
+                  {showBalances
+                    ? `$${totalBalance.toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}`
+                    : '••••••'}
                 </p>
               </div>
               <button
@@ -134,7 +211,7 @@ export default function DashboardPage() {
 
         {/* Balance Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
-          {mockBalances.map((balance) => (
+          {balances.map((balance) => (
             <div key={balance.currency} className="p-3 gradient-card border border-slate-600 rounded-lg">
               <div className="flex items-center justify-between mb-2">
                 <CurrencyIcon currency={balance.currency} className="w-6 h-6" />
@@ -190,7 +267,7 @@ export default function DashboardPage() {
         <div className="p-6 gradient-card border border-slate-600 rounded-lg pattern-overlay pattern-bg-7">
           <h3 className="text-lg font-semibold text-white mb-6">Recent Transactions</h3>
           <div className="space-y-4">
-            {mockTransactions.map((transaction) => (
+            {transactions.map((transaction) => (
               <div key={transaction.id} className="flex items-center justify-between p-4 border border-slate-600 rounded-lg bg-slate-800/50">
                 <div className="flex items-center space-x-4">
                   <div className="flex-shrink-0">
@@ -219,7 +296,7 @@ export default function DashboardPage() {
                     ) : (
                       <Clock className="h-4 w-4 text-orange-400" />
                     )}
-                    <span className="text-sm text-slate-300 capitalize">{transaction.status}</span>
+                    <span className="text-sm text-slate-300">{formatStatusLabel(transaction.status)}</span>
                   </div>
                 </div>
               </div>
@@ -227,6 +304,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      <ToastStack toasts={toasts} onDismiss={removeToast} />
     </AppLayout>
   );
 }

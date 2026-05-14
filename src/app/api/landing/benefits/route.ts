@@ -3,6 +3,7 @@ import { fetchBackend } from '@/lib/backend-fetcher';
 import { BenefitListSchema } from '@/types';
 
 const BACKEND_BENEFITS_PATH = process.env.BACKEND_BENEFITS_PATH || '/api/landing/benefits';
+const USE_BACKEND_LANDING_CONTENT = process.env.USE_BACKEND_LANDING_CONTENT === 'true';
 
 // Mock benefits for fallback
 const mockBenefits = [
@@ -45,14 +46,21 @@ const mockBenefits = [
 
 export async function GET(request: NextRequest) {
   try {
+    if (!USE_BACKEND_LANDING_CONTENT) {
+      const validated = BenefitListSchema.parse(mockBenefits);
+      return NextResponse.json(validated);
+    }
+
     try {
       // Try to fetch from backend
       const response = await fetchBackend(BACKEND_BENEFITS_PATH, {
         method: 'GET',
       });
 
+      const data = await response.json();
+
       // Validate response structure
-      const validated = BenefitListSchema.parse(response);
+      const validated = BenefitListSchema.parse(data);
       return NextResponse.json(validated);
     } catch (backendError) {
       console.warn('Failed to fetch benefits from backend, using mock data:', backendError);

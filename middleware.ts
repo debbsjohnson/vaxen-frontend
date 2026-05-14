@@ -1,5 +1,6 @@
 import createMiddleware from 'next-intl/middleware';
 import { NextRequest, NextResponse } from 'next/server';
+import { hasLocale } from 'next-intl';
 import { routing } from './src/i18n/routing';
 
 const intlMiddleware = createMiddleware(routing);
@@ -19,7 +20,7 @@ const protectedRoutes = new Set([
 
 function getLocaleFromPath(pathname: string) {
   const [, locale] = pathname.split('/');
-  if (routing.locales.includes(locale)) {
+  if (hasLocale(routing.locales, locale)) {
     return locale;
   }
 

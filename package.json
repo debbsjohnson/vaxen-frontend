@@ -4,9 +4,11 @@
   "description": "Vaxen web application",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "NODE_OPTIONS=--max-old-space-size=4096 next dev",
+    "dev:turbo": "NODE_OPTIONS=--max-old-space-size=4096 next dev --turbopack",
+    "dev:optimized-imports": "ENABLE_OPTIMIZE_PACKAGE_IMPORTS=true NODE_OPTIONS=--max-old-space-size=4096 next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node .next/standalone/server.js",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .next dist"

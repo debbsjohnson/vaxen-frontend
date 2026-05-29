@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Plus,
   Search,
@@ -18,6 +18,9 @@ import {
   ChevronRight,
   ChevronDown
 } from 'lucide-react';
+import { ToastStack } from '@/components/shared/toast-stack';
+import { vaxenApi } from '@/lib/vaxen-api';
+import { useToastStack } from '@/lib/use-toast-stack';
 
 // Mock data for team members
 const mockTeamMembers = [
@@ -91,17 +94,82 @@ const mockPendingApprovals = [
 ];
 
 export function Team() {
+  const { toasts, addToast, removeToast } = useToastStack();
   const [activeTab, setActiveTab] = useState('members');
   const [searchTerm, setSearchTerm] = useState('');
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [teamMembers, setTeamMembers] = useState(mockTeamMembers);
+  const [pendingApprovals, setPendingApprovals] = useState(mockPendingApprovals);
 
   // Filter members based on search term
-  const filteredMembers = mockTeamMembers.filter(member =>
+  const filteredMembers = teamMembers.filter(member =>
     member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     member.role.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTeamData = async () => {
+      setIsLoading(true);
+      try {
+        const [usersResponse, approvalsResponse] = await Promise.all([
+          vaxenApi.admin.users.list({ page: 1, limit: 100 }),
+          vaxenApi.approvals.pending(),
+        ]);
+
+        if (!cancelled && usersResponse.data.length > 0) {
+          setTeamMembers(
+            usersResponse.data.map((user) => {
+              const localPart = user.email.split('@')[0] || 'User';
+              const derivedName = localPart
+                .replace(/[._-]+/g, ' ')
+                .replace(/\b\w/g, (char) => char.toUpperCase());
+
+              return {
+                id: user.id,
+                name: derivedName,
+                email: user.email,
+                role: user.role,
+                dateAdded: new Date().toISOString(),
+                avatar: '',
+                status: 'active',
+              };
+            })
+          );
+        }
+
+        if (!cancelled) {
+          setPendingApprovals(
+            approvalsResponse.data.map((approval) => ({
+              id: approval.id,
+              name: `${approval.resourceType} request`,
+              email: approval.requestedById,
+              role: approval.actionType.toUpperCase().includes('ADMIN') ? 'ADMIN' : 'USER',
+              dateRequested: approval.createdAt,
+              invitedBy: approval.requestedById,
+              avatar: '',
+            }))
+          );
+        }
+      } catch {
+        addToast('error', 'Unable to load team data from backend.');
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadTeamData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [addToast]);
 
   // Pagination
   const totalPages = Math.ceil(filteredMembers.length / rowsPerPage);
@@ -168,9 +236,9 @@ export function Team() {
           }`}
         >
           Pending Approvals
-          {mockPendingApprovals.length > 0 && (
+          {pendingApprovals.length > 0 && (
             <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-              {mockPendingApprovals.length}
+              {pendingApprovals.length}
             </span>
           )}
         </button>
@@ -221,7 +289,12 @@ export function Team() {
 
           {/* Members Table */}
           <div className="gradient-card border border-slate-600 rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
+            {isLoading ? (
+              <div className="p-8 text-center text-slate-300">Loading team members...</div>
+            ) : filteredMembers.length === 0 ? (
+              <div className="p-8 text-center text-slate-300">No team members found.</div>
+            ) : (
+              <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="gradient-primary">
                   <tr>
@@ -271,7 +344,8 @@ export function Team() {
                   ))}
                 </tbody>
               </table>
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Pagination */}
@@ -344,7 +418,7 @@ export function Team() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700">
-                  {mockPendingApprovals.map((approval) => (
+                  {pendingApprovals.map((approval) => (
                     <tr key={approval.id} className="hover:bg-slate-800/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-3">
@@ -383,7 +457,7 @@ export function Team() {
             </div>
           </div>
 
-          {mockPendingApprovals.length === 0 && (
+          {!isLoading && pendingApprovals.length === 0 && (
             <div className="text-center py-12">
               <div className="text-slate-400 text-lg">No pending approvals</div>
               <div className="text-slate-500 text-sm mt-2">All team member requests have been processed</div>
@@ -391,6 +465,7 @@ export function Team() {
           )}
         </div>
       )}
+      <ToastStack toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 }

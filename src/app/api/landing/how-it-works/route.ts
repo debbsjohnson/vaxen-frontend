@@ -3,6 +3,7 @@ import { fetchBackend } from '@/lib/backend-fetcher';
 import { HowItWorksListSchema } from '@/types';
 
 const BACKEND_HOW_IT_WORKS_PATH = process.env.BACKEND_HOW_IT_WORKS_PATH || '/api/landing/how-it-works';
+const USE_BACKEND_LANDING_CONTENT = process.env.USE_BACKEND_LANDING_CONTENT === 'true';
 
 // Mock steps for fallback
 const mockSteps = [
@@ -42,14 +43,21 @@ const mockSteps = [
 
 export async function GET(request: NextRequest) {
   try {
+    if (!USE_BACKEND_LANDING_CONTENT) {
+      const validated = HowItWorksListSchema.parse(mockSteps);
+      return NextResponse.json(validated);
+    }
+
     try {
       // Try to fetch from backend
       const response = await fetchBackend(BACKEND_HOW_IT_WORKS_PATH, {
         method: 'GET',
       });
 
+      const data = await response.json();
+
       // Validate response structure
-      const validated = HowItWorksListSchema.parse(response);
+      const validated = HowItWorksListSchema.parse(data);
       return NextResponse.json(validated);
     } catch (backendError) {
       console.warn('Failed to fetch how-it-works from backend, using mock data:', backendError);

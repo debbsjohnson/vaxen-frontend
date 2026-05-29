@@ -6,7 +6,7 @@ const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
 const RATE_LIMIT = 5; // Max 5 requests
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const BACKEND_REQUEST_ACCESS_PATH = process.env.BACKEND_REQUEST_ACCESS_PATH || '/api/request-access';
+const BACKEND_REQUEST_ACCESS_PATH = process.env.BACKEND_REQUEST_ACCESS_PATH || '/api/v1/auth/request-access';
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
@@ -47,10 +47,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true }); // Silent fail for bots
     }
 
+    const legacyName = typeof body.name === 'string' ? body.name.trim() : '';
+    const [legacyFirstName = '', ...legacyLastNameParts] = legacyName.split(/\s+/);
+    const firstName = (typeof body.firstName === 'string' ? body.firstName.trim() : '') || legacyFirstName;
+    const lastName =
+      (typeof body.lastName === 'string' ? body.lastName.trim() : '') ||
+      legacyLastNameParts.join(' ').trim();
+
     // Validation
-    if (!body.name || !body.company || !body.email || !body.role) {
+    if (!firstName || !lastName || !body.company || !body.email || !body.role) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields. Include full name, company, email, and role.' },
         { status: 400 }
       );
     }
@@ -65,7 +72,8 @@ export async function POST(request: NextRequest) {
     }
 
     const payload = {
-      name: body.name,
+      firstName,
+      lastName,
       company: body.company,
       email: body.email,
       role: body.role,

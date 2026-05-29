@@ -1,7 +1,6 @@
 # syntax = docker/dockerfile:1
 
-ARG NODE_VERSION=20
-FROM node:${NODE_VERSION}-alpine AS base
+FROM node:20.20.2-alpine3.22 AS base
 
 LABEL environment="production"
 LABEL fly_launch_runtime="Next.js"

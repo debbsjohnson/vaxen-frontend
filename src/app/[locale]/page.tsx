@@ -7,5 +7,5 @@ export default function HomePage({
 }) {
   const { locale } = params;
   // Redirect to dashboard for now
-  redirect(`/${locale}/dashboard`);
+  redirect(`/${locale}/landing`);
 }

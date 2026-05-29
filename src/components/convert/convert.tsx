@@ -20,6 +20,9 @@ import {
 } from 'lucide-react';
 
 import { CurrencyIcon } from '@/components/shared/currency-icon';
+import { ToastStack } from '@/components/shared/toast-stack';
+import { vaxenApi } from '@/lib/vaxen-api';
+import { useToastStack } from '@/lib/use-toast-stack';
 
 // Mock exchange rates (in real app, this would come from API)
 const mockExchangeRates = {
@@ -37,6 +40,7 @@ const currencies = [
 ];
 
 export function Convert() {
+  const { toasts, addToast, removeToast } = useToastStack();
   const [fromCurrency, setFromCurrency] = useState('USD');
   const [toCurrency, setToCurrency] = useState('EUR');
   const [fromAmount, setFromAmount] = useState('1000');
@@ -50,15 +54,47 @@ export function Convert() {
 
   // Calculate conversion
   useEffect(() => {
-    if (fromAmount && fromCurrency && toCurrency) {
-      const fromRates = mockExchangeRates[fromCurrency as keyof typeof mockExchangeRates] as Record<string, number> | undefined;
-      const rate = fromRates?.[toCurrency];
-      if (rate) {
-        setExchangeRate(rate);
-        const converted = parseFloat(fromAmount) * rate;
-        setToAmount(converted.toFixed(8));
+    let cancelled = false;
+
+    const loadRate = async () => {
+      if (!fromAmount || !fromCurrency || !toCurrency || fromCurrency === toCurrency) {
+        return;
       }
-    }
+
+      try {
+        const response = await vaxenApi.conversions.rate({ from: fromCurrency, to: toCurrency });
+        const candidate = response.data;
+        const rateFromApi =
+          typeof candidate === 'string'
+            ? Number(candidate)
+            : Number((candidate as Record<string, unknown>).rate ?? 0);
+
+        if (!cancelled && Number.isFinite(rateFromApi) && rateFromApi > 0) {
+          setExchangeRate(rateFromApi);
+          setToAmount((Number(fromAmount) * rateFromApi).toFixed(8));
+          return;
+        }
+      } catch {
+        // Fall through to local fallback rate.
+      }
+
+      const fromRates =
+        mockExchangeRates[fromCurrency as keyof typeof mockExchangeRates] as
+          | Record<string, number>
+          | undefined;
+      const fallbackRate = fromRates?.[toCurrency];
+
+      if (!cancelled && fallbackRate) {
+        setExchangeRate(fallbackRate);
+        setToAmount((parseFloat(fromAmount) * fallbackRate).toFixed(8));
+      }
+    };
+
+    loadRate();
+
+    return () => {
+      cancelled = true;
+    };
   }, [fromAmount, fromCurrency, toCurrency]);
 
   const handleSwapCurrencies = () => {
@@ -69,10 +105,24 @@ export function Convert() {
 
   const handleConvert = async () => {
     setIsLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsLoading(false);
-    // In real app, this would trigger the actual conversion
+    try {
+      const quote = await vaxenApi.quotes.create({
+        fromCurrency,
+        toCurrency,
+        amount: fromAmount,
+        side: 'sell',
+      });
+
+      await vaxenApi.conversions.create({
+        quoteId: quote.data.id,
+      });
+
+      addToast('success', 'Conversion request submitted successfully.');
+    } catch {
+      addToast('error', 'Unable to execute conversion right now.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getCurrencyInfo = (code: string) => {
@@ -91,7 +141,8 @@ export function Convert() {
   };
 
   return (
-    <div className="space-y-8">
+    <>
+      <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -400,6 +451,8 @@ export function Convert() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+      <ToastStack toasts={toasts} onDismiss={removeToast} />
+    </>
   );
 }

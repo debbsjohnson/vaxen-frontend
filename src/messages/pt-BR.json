@@ -33,6 +33,8 @@
   },
   "auth": {
     "login": "Entrar",
+    "loading": "Carregando...",
+    "loggingIn": "Entrando...",
     "logout": "Sair",
     "email": "Email",
     "password": "Senha",

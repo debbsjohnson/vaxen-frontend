@@ -3,6 +3,7 @@ import { fetchBackend } from '@/lib/backend-fetcher';
 import { DashboardSummarySchema } from '@/types';
 
 const BACKEND_DASHBOARD_PATH = process.env.BACKEND_DASHBOARD_PATH || '/api/dashboard/summary';
+const USE_BACKEND_LANDING_CONTENT = process.env.USE_BACKEND_LANDING_CONTENT === 'true';
 
 // Mock dashboard data for fallback
 const mockDashboardSummary = {
@@ -57,14 +58,21 @@ const mockDashboardSummary = {
 
 export async function GET(request: NextRequest) {
   try {
+    if (!USE_BACKEND_LANDING_CONTENT) {
+      const validated = DashboardSummarySchema.parse(mockDashboardSummary);
+      return NextResponse.json(validated);
+    }
+
     try {
       // Try to fetch from backend
       const response = await fetchBackend(BACKEND_DASHBOARD_PATH, {
         method: 'GET',
       });
 
+      const data = await response.json();
+
       // Validate response structure
-      const validated = DashboardSummarySchema.parse(response);
+      const validated = DashboardSummarySchema.parse(data);
       return NextResponse.json(validated);
     } catch (backendError) {
       console.warn('Failed to fetch dashboard summary from backend, using mock data:', backendError);

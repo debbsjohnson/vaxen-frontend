@@ -4,6 +4,10 @@ type FetchOptions<TBody> = {
   body?: TBody;
 };
 
+type RequestOptions = {
+  headers?: Record<string, string>;
+};
+
 async function handleResponse<TResponse>(response: Response): Promise<TResponse> {
   if (!response.ok) {
     let message = 'Request failed';
@@ -29,6 +33,7 @@ async function request<TResponse, TBody>(
 ): Promise<TResponse> {
   const fetchOptions: RequestInit = {
     method: options.method,
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -47,27 +52,58 @@ export async function getJson<TResponse>(path: string): Promise<TResponse> {
   return request<TResponse, never>(path, { method: 'GET' });
 }
 
-export async function postJson<TResponse, TBody>(path: string, body: TBody): Promise<TResponse> {
+export async function getJsonWithOptions<TResponse>(
+  path: string,
+  options?: RequestOptions
+): Promise<TResponse> {
+  return request<TResponse, never>(path, {
+    method: 'GET',
+    headers: options?.headers,
+  });
+}
+
+export async function postJson<TResponse, TBody>(
+  path: string,
+  body: TBody,
+  options?: RequestOptions
+): Promise<TResponse> {
   return request<TResponse, TBody>(path, {
     method: 'POST',
+    headers: options?.headers,
     body,
   });
 }
 
-export async function patchJson<TResponse, TBody>(path: string, body: TBody): Promise<TResponse> {
+export async function patchJson<TResponse, TBody>(
+  path: string,
+  body: TBody,
+  options?: RequestOptions
+): Promise<TResponse> {
   return request<TResponse, TBody>(path, {
     method: 'PATCH',
+    headers: options?.headers,
     body,
   });
 }
 
-export async function putJson<TResponse, TBody>(path: string, body: TBody): Promise<TResponse> {
+export async function putJson<TResponse, TBody>(
+  path: string,
+  body: TBody,
+  options?: RequestOptions
+): Promise<TResponse> {
   return request<TResponse, TBody>(path, {
     method: 'PUT',
+    headers: options?.headers,
     body,
   });
 }
 
-export async function deleteJson<TResponse>(path: string): Promise<TResponse> {
-  return request<TResponse, never>(path, { method: 'DELETE' });
+export async function deleteJson<TResponse>(
+  path: string,
+  options?: RequestOptions
+): Promise<TResponse> {
+  return request<TResponse, never>(path, {
+    method: 'DELETE',
+    headers: options?.headers,
+  });
 }

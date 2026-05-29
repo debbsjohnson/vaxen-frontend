@@ -17,6 +17,7 @@ export * from './audit';
 
 // Common types
 export * from './common';
+export * from './backend-api';
 
 // Landing page types
 export * from './landing';

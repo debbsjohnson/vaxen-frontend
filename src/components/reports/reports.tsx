@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   BarChart3,
   TrendingUp,
@@ -33,6 +33,9 @@ import {
 } from 'lucide-react';
 
 import { CurrencyIcon } from '@/components/shared/currency-icon';
+import { ToastStack } from '@/components/shared/toast-stack';
+import { vaxenApi } from '@/lib/vaxen-api';
+import { useToastStack } from '@/lib/use-toast-stack';
 
 // Mock data for key metrics
 const mockKeyMetrics = [
@@ -113,8 +116,13 @@ const mockPaymentMethods = [
 ];
 
 export function Reports() {
+  const { toasts, addToast, removeToast } = useToastStack();
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
   const [selectedCurrency, setSelectedCurrency] = useState('all');
+  const [keyMetrics, setKeyMetrics] = useState(mockKeyMetrics);
+  const [volumeByCurrency, setVolumeByCurrency] = useState(mockVolumeByCurrency);
   const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({
     overview: true,
     volume: true,
@@ -142,6 +150,95 @@ export function Reports() {
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('en-US').format(num);
   };
+
+  const readNumber = (source: Record<string, unknown>, candidates: string[]) => {
+    for (const key of candidates) {
+      const value = source[key];
+      const asNumber = Number(value);
+      if (Number.isFinite(asNumber) && asNumber > 0) {
+        return asNumber;
+      }
+    }
+    return 0;
+  };
+
+  const loadReports = async (showFeedback = false) => {
+    setIsRefreshing(true);
+
+    try {
+      const [fxPnlResponse, transactionsResponse, balancesResponse] = await Promise.all([
+        vaxenApi.reports.fxPnl(),
+        vaxenApi.reports.transactions(),
+        vaxenApi.reports.balances(),
+      ]);
+
+      const transactionsData = transactionsResponse.data as Record<string, unknown>;
+      const balancesData = balancesResponse.data as Record<string, unknown>;
+      const fxPnlData = fxPnlResponse.data as Record<string, unknown>;
+
+      const totalVolume = readNumber(transactionsData, ['totalVolume', 'volume', 'grossVolume']);
+      const transactionCount = readNumber(transactionsData, ['count', 'transactions', 'totalTransactions']);
+      const activeUsers = readNumber(transactionsData, ['activeUsers', 'users', 'distinctUsers']);
+      const successRate = readNumber(transactionsData, ['successRate', 'completionRate']);
+
+      setKeyMetrics([
+        {
+          ...mockKeyMetrics[0],
+          value: totalVolume ? formatCurrency(totalVolume) : mockKeyMetrics[0].value,
+        },
+        {
+          ...mockKeyMetrics[1],
+          value: activeUsers ? formatNumber(activeUsers) : mockKeyMetrics[1].value,
+        },
+        {
+          ...mockKeyMetrics[2],
+          value: transactionCount ? formatNumber(transactionCount) : mockKeyMetrics[2].value,
+        },
+        {
+          ...mockKeyMetrics[3],
+          value: successRate ? `${successRate.toFixed(1)}%` : mockKeyMetrics[3].value,
+          change: fxPnlData.pnl ? `${Number(fxPnlData.pnl).toFixed(2)} pnl` : mockKeyMetrics[3].change,
+        },
+      ]);
+
+      const byCurrency = balancesData.byCurrency;
+      if (byCurrency && typeof byCurrency === 'object') {
+        const entries = Object.entries(byCurrency as Record<string, unknown>)
+          .map(([currency, volume]) => ({
+            currency,
+            volume: Number(volume) || 0,
+          }))
+          .filter((entry) => entry.volume > 0);
+
+        if (entries.length > 0) {
+          const total = entries.reduce((sum, entry) => sum + entry.volume, 0);
+          setVolumeByCurrency(
+            entries.map((entry, index) => ({
+              currency: entry.currency,
+              volume: entry.volume,
+              percentage: Math.max(1, Math.round((entry.volume / total) * 100)),
+              color: mockVolumeByCurrency[index % mockVolumeByCurrency.length].color,
+            }))
+          );
+        }
+      }
+
+      if (showFeedback) {
+        addToast('success', 'Reports refreshed from backend.');
+      }
+    } catch {
+      if (showFeedback) {
+        addToast('error', 'Unable to refresh reports right now.');
+      }
+    } finally {
+      setIsRefreshing(false);
+      setIsInitialLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadReports();
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -177,8 +274,12 @@ export function Reports() {
               <option value="BRL">BRL</option>
             </select>
           </div>
-          <button className="flex items-center px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors">
-            <RefreshCw className="h-4 w-4 mr-2" />
+          <button
+            onClick={() => loadReports(true)}
+            disabled={isRefreshing}
+            className="flex items-center px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh
           </button>
           <button className="flex items-center px-4 py-2 gradient-primary text-white rounded-lg hover:opacity-90 transition-all">
@@ -190,7 +291,13 @@ export function Reports() {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {mockKeyMetrics.map((metric, index) => (
+        {isInitialLoading ? [1, 2, 3, 4].map((placeholder) => (
+          <div key={placeholder} className="gradient-card border border-slate-600 rounded-lg p-6 animate-pulse">
+            <div className="h-4 w-24 bg-slate-700 rounded mb-3" />
+            <div className="h-8 w-28 bg-slate-700 rounded mb-3" />
+            <div className="h-4 w-16 bg-slate-700 rounded" />
+          </div>
+        )) : keyMetrics.map((metric, index) => (
           <div key={index} className="gradient-card border border-slate-600 rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -230,10 +337,15 @@ export function Reports() {
         
         {expandedSections.volume && (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {volumeByCurrency.length === 0 ? (
+              <div className="p-6 text-center text-slate-300 bg-slate-800/50 rounded-lg">
+                No volume data available for the selected filters.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Currency Breakdown */}
               <div className="space-y-4">
-                {mockVolumeByCurrency.map((item, index) => (
+                {volumeByCurrency.map((item, index) => (
                   <div key={index} className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <CurrencyIcon currency={item.currency} className="w-6 h-6" />
@@ -271,6 +383,7 @@ export function Reports() {
                 </div>
               </div>
             </div>
+            )}
           </div>
         )}
       </div>
@@ -464,6 +577,7 @@ export function Reports() {
           </div>
         </div>
       </div>
+      <ToastStack toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 }

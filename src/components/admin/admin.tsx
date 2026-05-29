@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Shield,
   Users,
@@ -59,6 +59,9 @@ import {
   ArrowUpRight,
   ArrowDownRight
 } from 'lucide-react';
+import { ToastStack } from '@/components/shared/toast-stack';
+import { vaxenApi } from '@/lib/vaxen-api';
+import { useToastStack } from '@/lib/use-toast-stack';
 
 // Mock data for system metrics
 const mockSystemMetrics = [
@@ -209,10 +212,90 @@ const mockSystemHealth = [
 ];
 
 export function Admin() {
+  const { toasts, addToast, removeToast } = useToastStack();
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [systemMetrics, setSystemMetrics] = useState(mockSystemMetrics);
+  const [recentActivities, setRecentActivities] = useState(mockRecentActivities);
+  const [users, setUsers] = useState(mockUsers);
+  const [systemHealth] = useState(mockSystemHealth);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAdminData = async () => {
+      setIsLoading(true);
+      try {
+        const [usersResponse, auditResponse] = await Promise.all([
+          vaxenApi.admin.users.list({ page: 1, limit: 100 }),
+          vaxenApi.reports.auditLogs({ page: 1, limit: 20 }),
+        ]);
+
+        if (!cancelled && usersResponse.data.length > 0) {
+          setUsers(
+            usersResponse.data.map((user) => {
+              const localPart = user.email.split('@')[0] || 'user';
+              const fullName = localPart
+                .replace(/[._-]+/g, ' ')
+                .replace(/\b\w/g, (char) => char.toUpperCase());
+
+              return {
+                id: user.id,
+                name: fullName,
+                email: user.email,
+                role: user.role.toLowerCase(),
+                status: 'active',
+                lastLogin: null,
+                createdAt: new Date().toISOString(),
+                loginCount: 0,
+                location: 'Unknown',
+              };
+            })
+          );
+        }
+
+        if (!cancelled && auditResponse.data.length > 0) {
+          const mappedActivities = auditResponse.data.map((log) => ({
+            id: log.id,
+            type: log.resource,
+            user: log.userId || 'system',
+            action: log.action,
+            timestamp: log.createdAt,
+            status: 'info',
+            ip: log.ipAddress || 'n/a',
+            location: 'n/a',
+          }));
+          setRecentActivities(mappedActivities);
+
+          setSystemMetrics((current) => [
+            {
+              ...current[0],
+              value: String(usersResponse.pagination?.total || usersResponse.data.length || current[0].value),
+            },
+            { ...current[1], value: String(mappedActivities.length) },
+            current[2],
+            current[3],
+          ]);
+        }
+      } catch {
+        addToast('error', 'Unable to load admin analytics from backend.');
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadAdminData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [addToast, refreshTick]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -262,7 +345,7 @@ export function Admin() {
     });
   };
 
-  const filteredUsers = mockUsers.filter(user => {
+  const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === 'all' || user.status === filterStatus;
@@ -288,8 +371,12 @@ export function Admin() {
           </p>
         </div>
         <div className="flex items-center space-x-3">
-          <button className="flex items-center px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors">
-            <RefreshCw className="h-4 w-4 mr-2" />
+          <button
+            onClick={() => setRefreshTick((value) => value + 1)}
+            disabled={isLoading}
+            className="flex items-center px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
           <button className="flex items-center px-4 py-2 gradient-primary text-white rounded-lg hover:opacity-90 transition-all">
@@ -322,7 +409,13 @@ export function Admin() {
         <div className="space-y-8">
           {/* System Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {mockSystemMetrics.map((metric, index) => (
+            {isLoading ? [1, 2, 3, 4].map((placeholder) => (
+              <div key={placeholder} className="gradient-card border border-slate-600 rounded-lg p-6 animate-pulse">
+                <div className="h-4 w-24 bg-slate-700 rounded mb-3" />
+                <div className="h-8 w-24 bg-slate-700 rounded mb-2" />
+                <div className="h-4 w-14 bg-slate-700 rounded" />
+              </div>
+            )) : systemMetrics.map((metric, index) => (
               <div key={index} className="gradient-card border border-slate-600 rounded-lg p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -349,7 +442,9 @@ export function Admin() {
           <div className="gradient-card border border-slate-600 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-white mb-6">Recent Activities</h3>
             <div className="space-y-3">
-              {mockRecentActivities.map((activity) => (
+              {!isLoading && recentActivities.length === 0 ? (
+                <div className="text-center p-6 text-slate-300 bg-slate-800/50 rounded-lg">No recent activity found.</div>
+              ) : recentActivities.map((activity) => (
                 <div key={activity.id} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg">
                   <div className="flex items-center space-x-4">
                     <div className={`p-2 rounded-lg ${getStatusColor(activity.status)}`}>
@@ -421,7 +516,13 @@ export function Admin() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700">
-                  {filteredUsers.map((user) => (
+                  {!isLoading && filteredUsers.length === 0 ? (
+                    <tr>
+                      <td className="px-6 py-8 text-center text-slate-300" colSpan={6}>
+                        No users found for the selected filters.
+                      </td>
+                    </tr>
+                  ) : filteredUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-slate-800/50 transition-colors">
                       <td className="px-6 py-4">
                         <div>
@@ -554,7 +655,7 @@ export function Admin() {
           <div className="gradient-card border border-slate-600 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-white mb-6">System Health</h3>
             <div className="space-y-3">
-              {mockSystemHealth.map((service, index) => (
+              {systemHealth.map((service, index) => (
                 <div key={index} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg">
                   <div className="flex items-center space-x-4">
                     <div className={`p-2 rounded-lg ${getStatusColor(service.status)}`}>
@@ -672,7 +773,9 @@ export function Admin() {
               </div>
             </div>
             <div className="space-y-3">
-              {mockRecentActivities.map((activity) => (
+              {!isLoading && recentActivities.length === 0 ? (
+                <div className="text-center p-6 text-slate-300 bg-slate-800/50 rounded-lg">No logs available.</div>
+              ) : recentActivities.map((activity) => (
                 <div key={activity.id} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg">
                   <div className="flex items-center space-x-4">
                     <div className={`p-2 rounded-lg ${getStatusColor(activity.status)}`}>
@@ -695,6 +798,7 @@ export function Admin() {
           </div>
         </div>
       )}
+      <ToastStack toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 }

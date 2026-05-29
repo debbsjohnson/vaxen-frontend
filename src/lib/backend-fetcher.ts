@@ -1,4 +1,8 @@
-const DEFAULT_BACKEND_BASE_URL = 'http://localhost:8080';
+// core (vaxen/core) listens on :9090 by default. Override with
+// BACKEND_API_URL (server-side, e.g. inside Docker) or
+// NEXT_PUBLIC_API_URL (for any client-direct calls — there shouldn't be
+// any, but the env stays compatible).
+const DEFAULT_BACKEND_BASE_URL = 'http://localhost:9090';
 
 function getBackendBaseUrl() {
   return (

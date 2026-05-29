@@ -1,9 +1,15 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { ToastStack } from '@/components/shared/toast-stack';
+import { setClientAuthState } from '@/lib/auth-state';
+import { vaxenApi } from '@/lib/vaxen-api';
+import { useToastStack } from '@/lib/use-toast-stack';
 import { Button } from '@/ui';
 import { Input } from '@/ui';
 import { Label } from '@/ui';
@@ -18,7 +24,12 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
+  const router = useRouter();
+  const locale = useLocale();
   const t = useTranslations('auth');
+  const { toasts, addToast, removeToast } = useToastStack();
+  const [apiError, setApiError] = useState('');
+  const [apiMessage, setApiMessage] = useState('');
   
   const {
     register,
@@ -29,10 +40,37 @@ export function LoginForm() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    // Mock login - replace with actual API call
-    console.log('Login data:', data);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    setApiError('');
+    setApiMessage('');
+
+    try {
+      const response = await vaxenApi.auth.login(data);
+
+      if ('requiresMfa' in response.data && response.data.requiresMfa && 'challengeId' in response.data) {
+        const message = 'MFA required. Enter your MFA code and submit again.';
+        setApiMessage(message);
+        addToast('success', message);
+        return;
+      }
+
+      const message = 'Login successful. Redirecting...';
+      setApiMessage(message);
+      addToast('success', message);
+
+      if (!('requiresMfa' in response.data)) {
+        setClientAuthState({
+          csrfToken: response.data.csrfToken,
+          user: response.data.user,
+        });
+      }
+
+      router.replace(`/${locale}/dashboard`);
+      router.refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Login failed. Please try again.';
+      setApiError(message);
+      addToast('error', message);
+    }
   };
 
   return (
@@ -45,6 +83,9 @@ export function LoginForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {apiError && <p className="text-sm text-destructive">{apiError}</p>}
+          {apiMessage && <p className="text-sm text-green-600">{apiMessage}</p>}
+
           <div className="space-y-2">
             <Label htmlFor="email">{t('email')}</Label>
             <Input
@@ -90,6 +131,7 @@ export function LoginForm() {
           </Button>
         </form>
       </CardContent>
+      <ToastStack toasts={toasts} onDismiss={removeToast} />
     </Card>
   );
 }

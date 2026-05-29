@@ -142,16 +142,20 @@ export const vaxenApi = {
       return validateAuthSessionResponse(response);
     },
 
+    // login / logout hit the dedicated Next.js handlers (NOT the
+    // /api/v1 catch-all) — those handlers talk to Supabase server-side
+    // and manage the httpOnly access + refresh cookies for us.
     login: async (payload: LoginInput) => {
-      const response = await postV1<BackendResponse<AuthSession | LoginMfaChallenge>, LoginInput>('/auth/login', payload);
+      const response = await postJson<BackendResponse<AuthSession | LoginMfaChallenge>, LoginInput>('/api/auth/login', payload);
       return validateLoginResponse(response);
     },
 
-    refresh: () =>
-      postV1<BackendResponse<{ message?: string }>, Record<string, never>>('/auth/refresh', {}),
+    // Refresh is handled transparently by the /api/v1 proxy on 401 —
+    // this stays as a no-op trigger that any client code may call.
+    refresh: () => Promise.resolve({ success: true } as BackendResponse<{ message?: string }>),
 
-    logout: (options?: HeadersOptions) =>
-      postV1<BackendResponse<{ message: string }>, Record<string, never>>('/auth/logout', {}, options),
+    logout: (_options?: HeadersOptions) =>
+      postJson<BackendResponse<{ message: string }>, Record<string, never>>('/api/auth/logout', {}),
   },
 
   mfa: {
